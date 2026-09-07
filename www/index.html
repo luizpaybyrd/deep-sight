@@ -403,6 +403,68 @@
   <footer>A physical model, not a fish. Real strikes depend on vibration, silhouette, speed and mood as much as color.</footer>
 </div>
 
+<dialog id="photo">
+  <div class="dh">
+    <b style="font-size:14px">Add a lure from a photo</b>
+    <button class="btn" id="photoClose">Close</button>
+  </div>
+  <div class="db">
+    <div id="ph1">
+      <p style="margin-top:0">Photograph the lure against a plain background — a
+      hand, a table, the deck. Side-on, filling most of the frame, in even light.
+      Avoid direct flash: a blown-out highlight reads as chrome.</p>
+      <button class="btn" id="photoPick" style="width:100%;padding:14px;font-size:14px">
+        Take a photo or choose one
+      </button>
+      <input type="file" id="photoFile" accept="image/*" style="display:none">
+    </div>
+
+    <div id="ph2" style="display:none">
+      <p style="margin-top:0" class="hint">Drag a box around <b>just the lure</b>.
+      Everything outside it is treated as background.</p>
+      <canvas id="photoCv" style="width:100%;display:block;border-radius:10px;
+        border:1px solid var(--line);touch-action:none;cursor:crosshair"></canvas>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn" id="photoAgain">Different photo</button>
+        <button class="btn" id="photoRun" style="flex:1;border-color:var(--acc);color:var(--acc)">Read the colours</button>
+      </div>
+    </div>
+
+    <div id="ph3" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
+        <div>
+          <div class="lbl" style="margin-bottom:6px">What it found</div>
+          <div id="photoSwatches"></div>
+        </div>
+        <div>
+          <div class="lbl" style="margin-bottom:6px">Simulated</div>
+          <canvas id="photoPrev" style="width:100%;display:block;border-radius:10px;background:#0b1116"></canvas>
+          <div class="hint" id="photoDiag" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin:12px 0 4px">
+        <label class="hint" style="display:flex;gap:6px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="photoBars"> vertical bars</label>
+        <label class="hint" style="display:flex;gap:6px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="photoMetal"> metallic / chrome</label>
+        <label class="hint" style="display:flex;gap:6px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="photoFluo"> fluorescent / UV</label>
+      </div>
+      <p class="hint" id="photoFluoNote" style="margin:2px 0 12px">
+        A camera cannot tell a fluorescent finish from an ordinary one — they look
+        alike in a photo but behave very differently at depth. If the packet says
+        UV, fluoro or "glow", tick that box and the model will add the emission.</p>
+      <input type="text" id="photoName" placeholder="Name it — e.g. Pink Candy 10cm"
+        style="width:100%;background:var(--panel-2);border:1px solid var(--line-2);
+        color:var(--ink);border-radius:9px;padding:9px;font:inherit;font-size:13px">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn" id="photoBack">Back</button>
+        <button class="btn" id="photoSave" style="flex:1;border-color:var(--acc);color:var(--acc)">Save this lure</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="info">
   <div class="dh"><b style="font-size:14px">How this simulation works</b><button class="btn" id="closeInfo">Close</button></div>
   <div class="db">
@@ -449,15 +511,50 @@
     <p>Contrast alone doesn't decide detection — angular size does too. The lure subtends <code>α = 2·atan(L/2r)</code>, and the contrast threshold climbs as α approaches the eye's minimum resolvable angle: <code>ε = ε₀·(1 + (4·MAR/α)²)</code>, with ε₀ rising as the rods take over. Detection range is where that index crosses 1.</p>
     <p>This is why lure size buys you very little in a turbid canal — there, range is capped by contrast, not resolution — and a great deal in clear water. It is also why the <b>meerval</b> and the <b>paling</b>, with far coarser acuity, see the same lure at roughly half the range a perch does.</p>
 
-    <h3>7. The predator's edge — why dusk</h3>
+    <h3>7. Your own lures, from a photograph</h3>
+    <p>The colour list is a starting point, not a limit — photograph a bait and it
+    becomes a preset. Everything happens on the device: nothing is uploaded, no key
+    is involved, and it works with no signal.</p>
+    <p><b>Finding the lure.</b> You drag a box round it; the ring just outside that
+    box is clustered to model the background, and pixels matching it are dropped,
+    along with blown highlights and crushed shadow. What remains is the bait.</p>
+    <p><b>Which way up.</b> Principal component analysis on the surviving pixels
+    finds the body axis, so a lure photographed vertically or at an angle is still
+    banded along its own length. The darker of the two flanks is taken as the back —
+    lures are countershaded, and the photo may well have been taken belly-up.</p>
+    <p><b>Reading the colours.</b> k-means in CIELAB, so clusters group the way the
+    colours actually look rather than how the sensor encoded them. Bands are scored
+    by <code>size × (1 + chroma/22)</code>: glare is neutral and pigment is not, so a
+    reflection cannot win a band just by covering more pixels — while a genuinely
+    white or black lure still wins on size.</p>
+    <p><b>Undoing the room light.</b> A specular highlight reflects the lamp, not the
+    pigment, so its colour estimates the illuminant. Dividing it out stops the warm
+    cast of indoor light being recorded as lure colour.</p>
+    <p><b>Back to spectra.</b> This is the part that matters. The engine works in
+    reflectance, not RGB, and recovering a spectrum from three numbers is
+    under-determined — infinitely many spectra share a colour. The
+    <b>Jakob &amp; Hanika (2019)</b> sigmoid model spans exactly the smooth, bounded
+    curves real pigments produce:</p>
+    <p><code>s(λ) = ½ + ½·x/√(1+x²),  x = c₂t² + c₁t + c₀</code></p>
+    <p>Three coefficients are fitted by Levenberg–Marquardt until the spectrum renders
+    back to the colour you started from — every palette colour round-trips with zero
+    error on all three channels. The result is a real reflectance curve, so a red read
+    off your photo goes black at depth exactly as red pigment does.</p>
+    <p><b>What it cannot see.</b> A camera cannot distinguish a fluorescent finish
+    from an ordinary one — they look alike in a photo and behave completely
+    differently underwater. That one stays a checkbox, because you know what the
+    packet said and the sensor does not. Bars, metallic flake and every colour remain
+    editable before you save.</p>
+
+    <h3>8. The predator's edge — why dusk</h3>
     <p>The day strip carries a second, green trace. It is not light: it is the ratio of how far <em>your</em> fish can see the lure to how far a <b>blankvoorn</b> can, computed every half hour. The shaded bands are where that ratio peaks.</p>
     <p>Nothing about this is folklore — it falls straight out of the eye models. A zander's tapetum lucidum and low rod threshold keep it seeing after a roach has effectively gone blind, so the ratio climbs as the light collapses and falls back to ~1.0 at midday when both see perfectly well. In a polder canal in September that puts the peak near 06:00 and 20:30, at about <b>8×</b>. Run the same numbers for a <b>roofblei</b> and you get 1.8×; for a <b>rainbow trout</b>, no window at all. Those are daylight hunters, and the model says so without being told.</p>
     <p>Change the date and the windows move with the Dutch daylight — 08:00 and 17:00 in late December, 04:00 and 22:30 in June.</p>
 
-    <h3>8. Local forage</h3>
+    <h3>9. Local forage</h3>
     <p>The forage group holds what a Dutch predator actually eats — blankvoorn, alver, baarsje, pos and the now-ubiquitous zwartbekgrondel. The match figure is the distance between your lure and the nearest of them in <em>the selected fish's own cone space</em>, under the current conditions. High means your lure reads as food; low means it reads as an intruder. Both catch fish; they are different arguments, and it helps to know which one you are making.</p>
 
-    <h3>9. Visibility score</h3>
+    <h3>10. Visibility score</h3>
     <p>Weber contrast in cone-excitation space (achromatic) combined with chromatic separation in the fish's own opponent channel, gated by whether there are enough photons for the species to detect anything at all.</p>
     <p>The setup lives in the URL — <b>Copy setup link</b> gives you a link that restores the whole rig.</p>
     <p style="color:var(--ink-3);margin-top:14px">Coefficients are literature-derived approximations tuned for legibility. Treat it as a good mental model — a strong one — not a laboratory instrument.</p>
@@ -700,6 +797,86 @@ const COL={
 const CHIP={};
 
 /* ══════════════════════════════════════════════════════════════════
+   RGB → REFLECTANCE (spectral upsampling)
+   A photo gives sRGB; the engine needs a spectrum. Recovering one is
+   under-determined — infinitely many spectra share a colour — so we use the
+   Jakob & Hanika (2019) sigmoid-polynomial model, which spans exactly the
+   smooth, bounded curves real pigments produce:
+       s(λ) = ½ + ½·x/√(1+x²),   x = c₂t² + c₁t + c₀,  t = (λ−400)/300
+   Three coefficients are then fitted by Levenberg–Marquardt so the spectrum
+   renders back to the colour we started from. The result is guaranteed to lie
+   in [0,1] and to behave correctly when the water eats the long wavelengths.
+   ══════════════════════════════════════════════════════════════════ */
+function sigSpec(c){
+  const out=new Array(NB);
+  for(let i=0;i<NB;i++){
+    const t=(LAM[i]-L0)/(L1-L0);
+    const x=(c[2]*t+c[1])*t+c[0];
+    out[i]=0.5+0.5*x/Math.sqrt(1+x*x);
+  }
+  return out;
+}
+/* forward model — identical maths to trueColor(), so a fit round-trips exactly */
+function specToLin(sp){
+  let X=0,Y=0,Z=0;
+  for(let i=0;i<NB;i++){const L=REF[i]*sp[i];X+=L*CMF[i][0];Y+=L*CMF[i][1];Z+=L*CMF[i][2];}
+  const k=0.92/SUN_Y*DL;
+  return xyz2lin(X*k,Y*k,Z*k);
+}
+function solve3(A,b){
+  const M=[[A[0][0],A[0][1],A[0][2],b[0]],
+           [A[1][0],A[1][1],A[1][2],b[1]],
+           [A[2][0],A[2][1],A[2][2],b[2]]];
+  for(let i=0;i<3;i++){
+    let p=i;for(let r=i+1;r<3;r++)if(Math.abs(M[r][i])>Math.abs(M[p][i]))p=r;
+    if(Math.abs(M[p][i])<1e-14)return null;
+    [M[i],M[p]]=[M[p],M[i]];
+    for(let r=0;r<3;r++){
+      if(r===i)continue;
+      const f=M[r][i]/M[i][i];
+      for(let cc=i;cc<4;cc++)M[r][cc]-=f*M[i][cc];
+    }
+  }
+  return [M[0][3]/M[0][0],M[1][3]/M[1][1],M[2][3]/M[2][2]];
+}
+/* srgb 0..255 → a reflectance spectrum that renders back to it */
+function fitReflectance(r8,g8,b8){
+  const inv=v=>{v/=255;return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);};
+  const tgt=[inv(r8),inv(g8),inv(b8)];
+  let c=[0,0,0], lam=1e-3;
+  const errOf=cc=>{const f=specToLin(sigSpec(cc));
+    return (f[0]-tgt[0])**2+(f[1]-tgt[1])**2+(f[2]-tgt[2])**2;};
+  let e=errOf(c);
+  for(let it=0;it<60&&e>1e-11;it++){
+    const f0=specToLin(sigSpec(c));
+    const res=[f0[0]-tgt[0],f0[1]-tgt[1],f0[2]-tgt[2]];
+    const J=[];
+    for(let k=0;k<3;k++){
+      const h=Math.max(1e-4,Math.abs(c[k])*1e-4), cc=c.slice(); cc[k]+=h;
+      const f1=specToLin(sigSpec(cc));
+      J.push([(f1[0]-f0[0])/h,(f1[1]-f0[1])/h,(f1[2]-f0[2])/h]);
+    }
+    const A=[[0,0,0],[0,0,0],[0,0,0]], g=[0,0,0];
+    for(let a=0;a<3;a++){
+      for(let b=0;b<3;b++){let t=0;for(let i=0;i<3;i++)t+=J[a][i]*J[b][i];A[a][b]=t;}
+      let t=0;for(let i=0;i<3;i++)t+=J[a][i]*res[i];g[a]=-t;
+    }
+    let stepped=false;
+    for(let tryI=0;tryI<8;tryI++){
+      const Ad=A.map((row,i)=>row.map((v,j)=>i===j?v*(1+lam)+1e-12:v));
+      const d=solve3(Ad,g);
+      if(!d)break;
+      const cn=[c[0]+d[0],c[1]+d[1],c[2]+d[2]];
+      const en=errOf(cn);
+      if(en<e){c=cn;e=en;lam=Math.max(lam*0.4,1e-9);stepped=true;break;}
+      lam*=6;
+    }
+    if(!stepped)break;
+  }
+  return {spec:sigSpec(c), coef:c, err:Math.sqrt(e)};
+}
+
+/* ══════════════════════════════════════════════════════════════════
    PATTERNS
    ══════════════════════════════════════════════════════════════════ */
 const PATS=[
@@ -743,6 +920,212 @@ const PATS=[
   {g:2,id:'pr_pos',    name:'Pos (ruffe)',        back:'gpump',  body:'craw',   belly:'bone',  acc:'black'}
 ];
 const AREA={back:.26,body:.44,belly:.20,acc:.10};
+
+/* ══════════════════════════════════════════════════════════════════
+   PHOTO → LURE PATTERN
+   Segment the bait out of a snapshot and read its colours off it.
+   Runs entirely on the device: no upload, no API key, works with no signal.
+   ══════════════════════════════════════════════════════════════════ */
+function rgb2lab(r,g,b){
+  const f=v=>{v/=255;return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);};
+  const R=f(r),G=f(g),B=f(b);
+  let X=(0.4124*R+0.3576*G+0.1805*B)/0.95047,
+      Y=(0.2126*R+0.7152*G+0.0722*B),
+      Z=(0.0193*R+0.1192*G+0.9505*B)/1.08883;
+  const h=v=>v>0.008856?Math.cbrt(v):(7.787*v+16/116);
+  X=h(X);Y=h(Y);Z=h(Z);
+  return [116*Y-16, 500*(X-Y), 200*(Y-Z)];
+}
+const dE=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+const chroma=l=>Math.hypot(l[1],l[2]);
+
+/* Lloyd's algorithm in CIELAB — perceptual distance, so clusters match how the
+   colours actually read rather than how the sensor encoded them. */
+function kmeans(pts,k,iters){
+  if(!pts.length)return [];
+  k=Math.min(k,pts.length);
+  const cen=[];
+  cen.push(pts[Math.floor(pts.length/2)].lab.slice());
+  while(cen.length<k){                      // k-means++ style seeding
+    let best=null,bd=-1;
+    for(let i=0;i<pts.length;i+=Math.max(1,(pts.length/400)|0)){
+      let m=1e9;for(const c of cen)m=Math.min(m,dE(pts[i].lab,c));
+      if(m>bd){bd=m;best=pts[i].lab;}
+    }
+    cen.push(best.slice());
+  }
+  const asg=new Array(pts.length).fill(0);
+  for(let it=0;it<(iters||12);it++){
+    let moved=false;
+    for(let i=0;i<pts.length;i++){
+      let b=0,bd=1e9;
+      for(let c=0;c<cen.length;c++){const d=dE(pts[i].lab,cen[c]);if(d<bd){bd=d;b=c;}}
+      if(asg[i]!==b){asg[i]=b;moved=true;}
+    }
+    const sum=cen.map(()=>[0,0,0,0,0,0,0]);
+    for(let i=0;i<pts.length;i++){
+      const a=asg[i],p=pts[i];
+      sum[a][0]+=p.lab[0];sum[a][1]+=p.lab[1];sum[a][2]+=p.lab[2];
+      sum[a][3]+=p.r;sum[a][4]+=p.g;sum[a][5]+=p.b;sum[a][6]++;
+    }
+    for(let c=0;c<cen.length;c++) if(sum[c][6])
+      cen[c]=[sum[c][0]/sum[c][6],sum[c][1]/sum[c][6],sum[c][2]/sum[c][6]];
+    if(!moved&&it>1)break;
+  }
+  const out=cen.map(()=>({n:0,r:0,g:0,b:0,lab:null}));
+  for(let i=0;i<pts.length;i++){
+    const a=asg[i],p=pts[i];
+    out[a].n++;out[a].r+=p.r;out[a].g+=p.g;out[a].b+=p.b;
+  }
+  return out.map((o,i)=>o.n?{
+      n:o.n, frac:o.n/pts.length,
+      rgb:[Math.round(o.r/o.n),Math.round(o.g/o.n),Math.round(o.b/o.n)],
+      lab:cen[i]
+    }:null).filter(Boolean).sort((a,b)=>b.n-a.n);
+}
+
+function analysePhoto(img, box){
+  const {data,width:W,height:H}=img;
+  const x0=Math.max(0,box.x0|0), y0=Math.max(0,box.y0|0),
+        x1=Math.min(W,box.x1|0), y1=Math.min(H,box.y1|0);
+  const bw=x1-x0, bh=y1-y0;
+  if(bw<8||bh<8) return null;
+  const at=(x,y)=>{const i=(y*W+x)*4;return [data[i],data[i+1],data[i+2]];};
+
+  // Background model: a ring just outside the selection, falling back to the
+  // selection's own corners when the box hugs the image edge.
+  const bgPts=[];
+  const pad=Math.max(3,Math.round(Math.min(bw,bh)*0.10));
+  for(let y=y0-pad;y<y1+pad;y+=2)for(let x=x0-pad;x<x1+pad;x+=2){
+    if(x>=x0&&x<x1&&y>=y0&&y<y1)continue;
+    if(x<0||y<0||x>=W||y>=H)continue;
+    const[r,g,b]=at(x,y);bgPts.push({r,g,b,lab:rgb2lab(r,g,b)});
+  }
+  const bg=kmeans(bgPts,3,10).filter(c=>c.frac>0.12);
+
+  // Pass 1: gather raw samples and find the highlights.
+  const step=Math.max(1,Math.round(Math.sqrt(bw*bh/9000)));
+  const raw=[];
+  let hlR=0,hlG=0,hlB=0,hlN=0,tot=0;
+  for(let y=y0;y<y1;y+=step)for(let x=x0;x<x1;x+=step){
+    const[r,g,b]=at(x,y); const lab=rgb2lab(r,g,b); tot++;
+    raw.push({x,y,r,g,b,L:lab[0],C:chroma(lab)});
+    if(lab[0]>78&&chroma(lab)<20){hlR+=r;hlG+=g;hlB+=b;hlN++;}
+  }
+  // A specular highlight reflects the light source itself rather than the
+  // pigment, so its colour is an estimate of the illuminant. Divide it out and
+  // the warm cast of indoor light stops being read as lure colour.
+  let wb=[1,1,1];
+  if(hlN>Math.max(12,tot*0.004)){
+    const mr=hlR/hlN,mg=hlG/hlN,mb=hlB/hlN,mean=(mr+mg+mb)/3;
+    wb=[mean/Math.max(1,mr),mean/Math.max(1,mg),mean/Math.max(1,mb)]
+        .map(v=>clamp(v,0.72,1.42));
+  }
+  // Pass 2: white-balance, drop glare / background / crushed shadow.
+  const pts=[]; let spec=0;
+  for(const q of raw){
+    if(q.L>80&&q.C<11){spec++;continue;}          // plastic sheen or blown highlight
+    if(q.L<6)continue;
+    const r=clamp(Math.round(q.r*wb[0]),0,255),
+          g=clamp(Math.round(q.g*wb[1]),0,255),
+          b=clamp(Math.round(q.b*wb[2]),0,255);
+    const lab=rgb2lab(r,g,b);
+    let isBg=false;
+    for(const c of bg) if(dE(lab,c.lab)<13){isBg=true;break;}
+    if(isBg)continue;
+    pts.push({x:q.x,y:q.y,r,g,b,lab});
+  }
+  if(pts.length<40) return null;
+
+  // Orientation: PCA on the mask, so a lure shot vertically or at an angle is
+  // still banded along its own body rather than along the image.
+  let mx=0,my=0;
+  for(const p of pts){mx+=p.x;my+=p.y;}
+  mx/=pts.length;my/=pts.length;
+  let sxx=0,syy=0,sxy=0;
+  for(const p of pts){const dx=p.x-mx,dy=p.y-my;sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy;}
+  const th=0.5*Math.atan2(2*sxy,sxx-syy);
+  const cs=Math.cos(th),sn=Math.sin(th);
+  for(const p of pts){
+    const dx=p.x-mx,dy=p.y-my;
+    p.u= dx*cs+dy*sn;      // along the body
+    p.v=-dx*sn+dy*cs;      // across it
+  }
+  const vs=pts.map(p=>p.v).sort((a,b)=>a-b);
+  const vlo=vs[Math.floor(vs.length*0.02)], vhi=vs[Math.floor(vs.length*0.98)];
+  const span=Math.max(1e-6,vhi-vlo);
+  for(const p of pts) p.t=clamp((p.v-vlo)/span,0,1);
+
+  // Glare is neutral; pigment is chromatic. Weighting by chroma keeps a washed
+  // highlight from winning a band just because it covers more pixels — while a
+  // genuinely white or black lure still wins on size.
+  const bandOf=lo=>{
+    const sel=pts.filter(p=>p.t>=lo&&p.t<lo+0.34);
+    const cl=kmeans(sel.length?sel:pts,3,10);
+    if(!cl.length)return null;
+    let best=cl[0],bs=-1;
+    for(const c of cl){
+      const sc=c.frac*(1+chroma(c.lab)/22);
+      if(sc>bs){bs=sc;best=c;}
+    }
+    return best;
+  };
+  let A=bandOf(0), Bd=bandOf(0.33), C=bandOf(0.66);
+  if(!A||!Bd||!C) return null;
+  // Which side is the back? The darker one — lures are countershaded, and the
+  // photo could just as easily have been taken belly-up.
+  let back=A, belly=C, flipped=false;
+  if(rgb2lab(...A.rgb)[0] > rgb2lab(...C.rgb)[0]){ back=C; belly=A; flipped=true; }
+
+  // Accent: a small but strongly distinct cluster — bars, eye, a blade.
+  const all=kmeans(pts,5,14);
+  const bodyLab=Bd.lab;
+  let acc=null,bestScore=-1;
+  for(const c of all){
+    if(c.frac>0.34||c.frac<0.015)continue;
+    if(c.lab[0]>82&&chroma(c.lab)<10)continue;          // that is a reflection
+    const sc=dE(c.lab,bodyLab)*Math.sqrt(c.frac);
+    if(sc>bestScore){bestScore=sc;acc=c;}
+  }
+  if(!acc) acc={rgb:back.rgb.slice()};
+
+  // Bars: periodic lightness along the body axis.
+  const mid=pts.filter(p=>p.t>=0.28&&p.t<=0.72);
+  let bars=false;
+  if(mid.length>60){
+    const us=mid.map(p=>p.u).sort((a,b)=>a-b);
+    const ulo=us[0], uhi=us[us.length-1], NB2=22;
+    const acc2=new Array(NB2).fill(0), cnt=new Array(NB2).fill(0);
+    for(const p of mid){
+      const k=clamp(Math.floor((p.u-ulo)/Math.max(1e-6,uhi-ulo)*NB2),0,NB2-1);
+      acc2[k]+=p.lab[0];cnt[k]++;
+    }
+    const rawP=[];for(let i=0;i<NB2;i++) if(cnt[i]>2) rawP.push(acc2[i]/cnt[i]);
+    if(rawP.length>=10){
+      // Metal flake makes a noisy profile; real bars make a smooth periodic one.
+      const prof=rawP.map((_,i)=>{
+        const a=rawP[Math.max(0,i-1)],b=rawP[i],c2=rawP[Math.min(rawP.length-1,i+1)];
+        return (a+2*b+c2)/4;
+      });
+      const mean=prof.reduce((a,b)=>a+b,0)/prof.length;
+      let flips=0,amp=0,prev=Math.sign(prof[0]-mean);
+      for(let i=1;i<prof.length;i++){
+        const sg=Math.sign(prof[i]-mean);
+        amp=Math.max(amp,Math.abs(prof[i]-mean));
+        if(sg&&sg!==prev){flips++;prev=sg;}
+      }
+      bars = flips>=4 && flips<=12 && amp>11;
+    }
+  }
+  const metal = tot ? (spec/tot) > 0.055 : false;
+
+  return {
+    back:back.rgb, body:Bd.rgb, belly:belly.rgb, acc:acc.rgb,
+    bars, metal, flipped,
+    pixels:pts.length, angleDeg:th*180/Math.PI,
+    specFrac:tot?spec/tot:0
+  };
+}
 
 /* ══════════════════════════════════════════════════════════════════
    SPECIES
@@ -832,9 +1215,12 @@ function buildEnv(distOverride){
   return {W,O,Kd,E0,E,T,bg,veil,lightFactor,pump,dist,
           sun:{elev,tz},sky,surfT,muD,bottom:BOT};
 }
+/* a region is either a palette key or an inline {s, fl, fle} from a photo */
+const resolveCol=c=>typeof c==='string'?COL[c]:c;
+
 /* radiance of a lure colour arriving at the fish's eye */
 function radiance(colKey,env){
-  const C=COL[colKey];
+  const C=resolveCol(colKey);
   const out=new Array(NB);
   for(let i=0;i<NB;i++){
     let L=env.E[i]*C.s[i]*env.lightFactor;
@@ -1404,36 +1790,73 @@ const moonLabel=v=>v<.06?'New':v<.32?'Crescent':v<.68?'Half':v<.9?'Gibbous':'Ful
     host.appendChild(b);
   });
 })();
-(function buildPats(){
-  const host=$('#pats');let cur=null;
+let CUSTOM=[];
+function loadCustom(){
+  try{CUSTOM=JSON.parse(localStorage.getItem('ds.custom')||'[]');}catch(e){CUSTOM=[];}
+  if(!Array.isArray(CUSTOM))CUSTOM=[];
+  for(let i=PATS.length-1;i>=0;i--) if(PATS[i].g===3) PATS.splice(i,1);
+  CUSTOM.forEach(c=>PATS.push(c));
+}
+function saveCustom(){
+  try{localStorage.setItem('ds.custom',JSON.stringify(CUSTOM));}
+  catch(e){alert('Could not save — this device is out of local storage.');}
+}
+loadCustom();
+function buildPats(){
+  const host=$('#pats');host.innerHTML='';let cur=null;
   PATS.forEach(p=>{
-    const g=p.g===2?'Local forage — what it actually eats':p.g?'Fox Rage Ultra UV — Zander Pro Shad':'Classic patterns';
+    const g=p.g===3?'My lures':p.g===2?'Local forage — what it actually eats':p.g?'Fox Rage Ultra UV — Zander Pro Shad':'Classic patterns';
     if(g!==cur){cur=g;const h=document.createElement('div');
       h.className='fishgrp';h.textContent=cur;host.appendChild(h);}
     const b=document.createElement('button');b.type='button';b.className='pat';b.dataset.id=p.id;
     b.setAttribute('aria-pressed',String(p.id===S.pat));
-    b.innerHTML=`<span class="chip" data-chip="${p.id}"></span><span>${p.name}</span>`;
+    b.innerHTML=`<span class="chip" data-chip="${p.id}" style="background:${patChipCSS(p)}"></span><span>${p.name}</span>`;
     b.onclick=()=>{S.pat=p.id;syncPressed('#pats .pat','id',S.pat);render();};
+    if(p.g===3){
+      const x=document.createElement('span');
+      x.textContent='×';x.title='Delete this lure';
+      x.style.cssText='margin-left:auto;padding:0 3px;color:var(--ink-3);font-size:14px;line-height:1';
+      x.onclick=ev=>{
+        ev.stopPropagation();
+        if(!confirm('Delete "'+p.name+'"?'))return;
+        CUSTOM=CUSTOM.filter(c=>c.id!==p.id);saveCustom();loadCustom();
+        if(S.pat===p.id)S.pat='ftiger';
+        buildPats();syncPressed('#pats .pat','id',S.pat);render();
+      };
+      b.appendChild(x);
+    }
     host.appendChild(b);
   });
-})();
+  const add=document.createElement('button');
+  add.type='button';add.className='pat';add.style.gridColumn='1/-1';
+  add.style.justifyContent='center';add.style.borderStyle='dashed';
+  add.innerHTML='<span style="font-size:14px;line-height:1">＋</span><span>Add your own lure from a photo</span>';
+  add.onclick=openPhoto;
+  host.appendChild(add);
+}
+buildPats();
 function syncPressed(sel,key,val){$$(sel).forEach(e=>e.setAttribute('aria-pressed',String(e.dataset[key]===val)));}
 
 /* true daylight colour of a reflectance, for chips */
 function trueColor(colKey){
-  if(CHIP[colKey])return CHIP[colKey];
-  const L=REF.map((v,i)=>v*COL[colKey].s[i]);
+  const key=typeof colKey==='string'?colKey:null;
+  if(key&&CHIP[key])return CHIP[key];
+  const C=resolveCol(colKey);
+  const L=REF.map((v,i)=>v*C.s[i]);
   const[x,y,z]=toXYZ(L);
   const s=0.92/SUN_Y;
   const[r,g,b]=xyz2lin(x*s,y*s,z*s);
   const out=[gam(r),gam(g),gam(b)];
-  CHIP[colKey]=out;return out;
+  if(key)CHIP[key]=out;
+  return out;
 }
 function patChipCSS(p){
   const a=trueColor(p.body),b=trueColor(p.belly),c=trueColor(p.back);
   return `linear-gradient(160deg,${css(...c)} 0 33%,${css(...a)} 33% 70%,${css(...b)} 70% 100%)`;
 }
-$$('[data-chip]').forEach(el=>{el.style.background=patChipCSS(PATS.find(p=>p.id===el.dataset.chip));});
+function paintChips(){$$('[data-chip]').forEach(el=>{
+  const p=PATS.find(x=>x.id===el.dataset.chip); if(p)el.style.background=patChipCSS(p);});}
+paintChips();
 
 /* sliders */
 function bindRange(el,setter,fmt){
@@ -2039,6 +2462,155 @@ $('#copyLink').onclick=async()=>{
   try{await navigator.clipboard.writeText(location.href);btn.textContent='Link copied';}
   catch(e){btn.textContent='Copy from the address bar';}
   setTimeout(()=>{btn.textContent='Copy setup link';},2200);
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   PHOTO IMPORT UI
+   ══════════════════════════════════════════════════════════════════ */
+const PH={img:null,imgData:null,box:null,scale:1,res:null,cols:null};
+function openPhoto(){
+  $('#ph1').style.display='';$('#ph2').style.display='none';$('#ph3').style.display='none';
+  $('#photo').showModal();
+}
+$('#photoClose').onclick=()=>$('#photo').close();
+$('#photoPick').onclick=()=>$('#photoFile').click();
+$('#photoAgain').onclick=()=>{$('#photoFile').value='';$('#photoPick').click();};
+$('#photoBack').onclick=()=>{$('#ph3').style.display='none';$('#ph2').style.display='';};
+
+$('#photoFile').onchange=e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f)return;
+  const url=URL.createObjectURL(f);
+  const im=new Image();
+  im.onload=()=>{
+    // Work at a manageable size; phone photos are 12MP and we need none of it.
+    const MAXD=520, sc=Math.min(1,MAXD/Math.max(im.width,im.height));
+    const w=Math.round(im.width*sc), h=Math.round(im.height*sc);
+    const cv=$('#photoCv'); cv.width=w; cv.height=h;
+    const c=cv.getContext('2d',{willReadFrequently:true});
+    c.drawImage(im,0,0,w,h);
+    PH.img=im; PH.imgData=c.getImageData(0,0,w,h);
+    // Start with a generous centre box; the angler adjusts it.
+    PH.box={x0:Math.round(w*0.10),y0:Math.round(h*0.22),x1:Math.round(w*0.90),y1:Math.round(h*0.78)};
+    drawPhotoBox();
+    URL.revokeObjectURL(url);
+    $('#ph1').style.display='none';$('#ph2').style.display='';$('#ph3').style.display='none';
+  };
+  im.onerror=()=>alert('That file could not be read as an image.');
+  im.src=url;
+};
+function drawPhotoBox(){
+  const cv=$('#photoCv'),c=cv.getContext('2d');
+  c.putImageData(PH.imgData,0,0);
+  const b=PH.box;
+  c.save();
+  c.fillStyle='rgba(4,10,14,.58)';
+  c.fillRect(0,0,cv.width,b.y0);
+  c.fillRect(0,b.y1,cv.width,cv.height-b.y1);
+  c.fillRect(0,b.y0,b.x0,b.y1-b.y0);
+  c.fillRect(b.x1,b.y0,cv.width-b.x1,b.y1-b.y0);
+  c.strokeStyle='#c9f24a';c.lineWidth=2;
+  c.strokeRect(b.x0+1,b.y0+1,b.x1-b.x0-2,b.y1-b.y0-2);
+  c.restore();
+}
+(function boxDrag(){
+  const cv=$('#photoCv');let a=null;
+  const pt=ev=>{
+    const r=cv.getBoundingClientRect();
+    const t=ev.touches?ev.touches[0]:ev;
+    return {x:clamp((t.clientX-r.left)/r.width*cv.width,0,cv.width),
+            y:clamp((t.clientY-r.top)/r.height*cv.height,0,cv.height)};
+  };
+  const down=ev=>{ev.preventDefault();a=pt(ev);};
+  const move=ev=>{
+    if(!a)return; ev.preventDefault();
+    const p=pt(ev);
+    PH.box={x0:Math.min(a.x,p.x),y0:Math.min(a.y,p.y),x1:Math.max(a.x,p.x),y1:Math.max(a.y,p.y)};
+    drawPhotoBox();
+  };
+  const up=()=>{a=null;};
+  cv.addEventListener('pointerdown',down);
+  cv.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',up);
+})();
+
+$('#photoRun').onclick=()=>{
+  const res=analysePhoto(PH.imgData,PH.box);
+  if(!res){alert('Not enough of the lure in that box. Try a tighter box, or a photo with more contrast against the background.');return;}
+  PH.res=res;
+  PH.cols={back:res.back.slice(),body:res.body.slice(),belly:res.belly.slice(),acc:res.acc.slice()};
+  $('#photoBars').checked=res.bars;
+  $('#photoMetal').checked=res.metal;
+  $('#photoFluo').checked=false;
+  $('#photoName').value='';
+  $('#photoDiag').textContent=
+    `${res.pixels} sample points · body axis ${Math.round(res.angleDeg)}°`+
+    (res.flipped?' · photographed belly-up':'')+
+    ` · ${Math.round(res.specFrac*100)}% highlight`;
+  buildSwatches();
+  $('#ph2').style.display='none';$('#ph3').style.display='';
+};
+function buildSwatches(){
+  const host=$('#photoSwatches');host.innerHTML='';
+  [['back','Back'],['body','Body / flank'],['belly','Belly'],['acc','Accent']].forEach(([k,lab])=>{
+    const row=document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:9px;margin-bottom:7px;cursor:pointer';
+    const hex='#'+PH.cols[k].map(v=>v.toString(16).padStart(2,'0')).join('');
+    row.innerHTML=`<input type="color" value="${hex}" style="width:34px;height:26px;padding:0;
+       border:1px solid var(--line);border-radius:7px;background:none;cursor:pointer">
+      <span class="hint" style="color:var(--ink-2)">${lab}</span>`;
+    row.querySelector('input').oninput=e=>{
+      const h=e.target.value;
+      PH.cols[k]=[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+      drawPhotoPreview();
+    };
+    host.appendChild(row);
+  });
+  drawPhotoPreview();
+}
+function photoPattern(name){
+  const fl=$('#photoFluo').checked;
+  const mk=rgb=>{
+    const f=fitReflectance(rgb[0],rgb[1],rgb[2]).spec;
+    const o={s:f};
+    if(fl){
+      // Emit in the band the pigment already reflects most strongly.
+      let bi=0;for(let i=0;i<NB;i++) if(f[i]>f[bi]) bi=i;
+      o.fl=0.45; o.fle={c:LAM[bi],w:42};
+    }
+    return o;
+  };
+  return {g:3,id:'my_'+Date.now().toString(36),name:name,
+          back:mk(PH.cols.back), body:mk(PH.cols.body),
+          belly:mk(PH.cols.belly), acc:mk(PH.cols.acc),
+          bars:$('#photoBars').checked?1:0, metal:$('#photoMetal').checked?1:0,
+          uv:$('#photoFluo').checked?1:0, src:PH.cols};
+}
+function drawPhotoPreview(){
+  const cv=$('#photoPrev');
+  const dpr=Math.min(window.devicePixelRatio||1,2.5);
+  const w=Math.max(180,cv.clientWidth||220), h=Math.round(w*0.52);
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
+  const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);
+  c.fillStyle='#0b1116';c.fillRect(0,0,w,h);
+  const pat=photoPattern('preview');
+  const C={};['back','body','belly','acc'].forEach(k=>C[k]=css(...trueColor(pat[k])));
+  c.save();c.translate(w/2,h/2);
+  const sc=Math.min(w/260,h/130);c.scale(sc,sc);
+  drawLure(c,LURES.find(l=>l.id===S.lure),C,1,pat);
+  c.restore();
+}
+['#photoBars','#photoMetal','#photoFluo'].forEach(sel=>{
+  $(sel).addEventListener('change',drawPhotoPreview);
+});
+$('#photoSave').onclick=()=>{
+  const nm=($('#photoName').value||'').trim()||'My lure '+(CUSTOM.length+1);
+  const pat=photoPattern(nm);
+  CUSTOM.push(pat);saveCustom();loadCustom();
+  buildPats();
+  S.pat=pat.id;
+  syncPressed('#pats .pat','id',S.pat);
+  $('#photo').close();
+  render();
 };
 
 /* ── tabs (installed-app / narrow layout only) ────────────────── */

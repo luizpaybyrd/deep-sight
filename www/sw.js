@@ -5,7 +5,7 @@
    fallback — not cache-first. Cache-first makes launches instant but serves a
    stale build for one whole session, which silently hides every update. With a
    2.5s race the app is still fast online and still launches fully offline. */
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = 'deep-sight-' + VERSION;
 const SHELL = ['./', './index.html', './manifest.webmanifest',
                './icons/icon-192.png', './icons/icon-512.png', './icons/icon-180.png'];
