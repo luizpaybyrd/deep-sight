@@ -28,18 +28,19 @@ Pages. **HTTPS is required** for the service worker and for "Add to Home Screen"
 
 ---
 
-## 2. On your iPhone in two minutes — no Apple account, no cost
+## 2. On your iPhone right now — no Apple account, no cost
 
-This is the fastest route and, for this app, very close to native. It needs the
-site on **HTTPS** (localhost will not do it from the phone).
+**It is already hosted:** <https://luizpaybyrd.github.io/deep-sight/>
 
-1. Host `www/` anywhere with HTTPS. Quickest options:
-   - `npx wrangler pages deploy www` (Cloudflare, free)
-   - `npx vercel deploy --prod www`
-   - drag the `www` folder onto app.netlify.com/drop
-2. Open the URL in **Safari** on the iPhone. It must be Safari — Chrome on iOS
+1. Open that URL in **Safari** on the iPhone. It must be Safari — Chrome on iOS
    cannot install web apps.
-3. **Share → Add to Home Screen → Add.**
+2. **Share → Add to Home Screen → Add.**
+
+GitHub Pages serves this repo root, and Pages branch mode can only publish `/` or
+`/docs` — so the root `index.html` is a redirect into `www/`, which stays the single
+shared source for the site and both native apps.
+
+A push to `main` redeploys the site automatically, usually within a minute.
 
 You get the app icon on the home screen, full screen with no browser chrome, the
 dark status bar, offline launch, and the bottom tab bar. Updates land on the next
@@ -77,6 +78,15 @@ Same URL in Chrome → menu → **Install app**. Or sideload the APK from route 
    | `APPLE_TEAM_ID` | 10-character Team ID from developer.apple.com → Membership |
 
 4. Run the **iOS → TestFlight** workflow (Actions tab → Run workflow).
+
+> **The CI workflows are not pushed yet.** Creating files under
+> `.github/workflows/` needs the `workflow` OAuth scope, which the `gh` token on
+> the dev box does not have. They are staged in `.ci-pending/`. To enable them:
+>
+> ```bash
+> gh auth refresh -s workflow -h github.com   # one interactive browser approval
+> ./enable-ci.sh
+> ```
 
 The build number is taken from the workflow run number, so every upload is unique
 — TestFlight rejects a build number it has already seen. Processing on Apple's
