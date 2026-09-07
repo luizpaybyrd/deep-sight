@@ -1,0 +1,2086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#070d12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deep Sight">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<title>Deep Sight — Lure Color Simulator</title>
+<style>
+  :root{
+    --bg:#070d12;
+    --bg2:#0b141c;
+    --panel:rgba(255,255,255,.045);
+    --panel-2:rgba(255,255,255,.028);
+    --line:rgba(255,255,255,.10);
+    --line-2:rgba(255,255,255,.06);
+    --ink:#e8f1f6;
+    --ink-2:#9fb3c0;
+    --ink-3:#6b8494;
+    --acc:#c9f24a;
+    --acc-dim:rgba(201,242,74,.14);
+    --warn:#ffb454;
+    --bad:#ff6b6b;
+    --good:#5fe0a8;
+    --r:14px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:
+      radial-gradient(1200px 700px at 78% -10%, #10303c 0%, transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, #0d2331 0%, transparent 55%),
+      linear-gradient(180deg,var(--bg2),var(--bg));
+    background-attachment:fixed;
+    color:var(--ink);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1560px;margin:0 auto;padding:20px 22px 56px}
+
+  header.top{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:20px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(150deg,var(--acc),#3fd9a0 70%);display:grid;place-items:center;flex:none;
+    box-shadow:0 0 0 1px rgba(255,255,255,.12),0 8px 26px rgba(201,242,74,.18)}
+  .mark svg{width:22px;height:22px;display:block}
+  h1{font-size:19px;margin:0;letter-spacing:-.02em;font-weight:650}
+  .tag{color:var(--ink-3);font-size:12.5px;margin-top:1px}
+  .top-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+  .layout{display:grid;grid-template-columns:288px minmax(0,1fr) 300px;gap:16px;align-items:start}
+  @media (max-width:1240px){.layout{grid-template-columns:270px minmax(0,1fr)}.col-right{grid-column:1/-1}}
+  @media (max-width:880px){.layout{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);backdrop-filter:blur(10px);margin-bottom:14px;overflow:hidden}
+  .card > .hd{padding:12px 14px 0;display:flex;align-items:center;gap:8px}
+  .card > .bd{padding:12px 14px 14px}
+  .lbl{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);font-weight:650}
+  .hint{font-size:11.5px;color:var(--ink-3);line-height:1.45}
+
+  /* water swatch grid */
+  .waters{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px}
+  .water{position:relative;border:1px solid var(--line-2);background:var(--panel-2);border-radius:10px;padding:0;cursor:pointer;overflow:hidden;text-align:left;color:inherit;font:inherit}
+  .water .sw{height:34px;display:block}
+  .water .nm{display:block;padding:6px 8px 7px;font-size:11.5px;line-height:1.25;color:var(--ink-2)}
+  .water[aria-pressed="true"]{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),0 6px 18px rgba(201,242,74,.12)}
+  .water[aria-pressed="true"] .nm{color:var(--ink);font-weight:600}
+  .water:hover{border-color:rgba(255,255,255,.28)}
+
+  /* segmented */
+  .seg{display:flex;background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:3px;gap:3px}
+  .seg button{flex:1;border:0;background:transparent;color:var(--ink-3);font:inherit;font-size:12px;padding:6px 4px;border-radius:7px;cursor:pointer;white-space:nowrap}
+  .seg button[aria-pressed="true"]{background:var(--acc-dim);color:var(--acc);font-weight:600;box-shadow:inset 0 0 0 1px rgba(201,242,74,.3)}
+  .seg.sm button{font-size:11.5px;padding:5px 3px}
+
+  /* sliders */
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+  .val{font:600 12.5px/1 var(--mono);color:var(--acc)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;margin:0}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:linear-gradient(90deg,var(--acc) var(--p,50%),rgba(255,255,255,.13) var(--p,50%))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;margin-top:-5.5px;box-shadow:0 1px 6px rgba(0,0,0,.5)}
+  input[type=range]::-moz-range-track{height:4px;border-radius:99px;background:rgba(255,255,255,.13)}
+  input[type=range]::-moz-range-progress{height:4px;border-radius:99px;background:var(--acc)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border:0;border-radius:50%;background:#fff}
+
+  select{width:100%;background:var(--panel-2);border:1px solid var(--line-2);color:var(--ink);border-radius:9px;padding:8px 9px;font:inherit;font-size:12.5px;cursor:pointer}
+  select:focus,button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+  /* stage */
+  .stage{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:#000}
+  .stage canvas{display:block;width:100%;height:auto}
+  .stage .ov{position:absolute;pointer-events:none}
+  .badge{top:12px;left:12px;display:flex;align-items:center;gap:9px;background:rgba(4,10,14,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.13);padding:7px 11px 7px 8px;border-radius:11px}
+  .badge .dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 12px currentColor;background:currentColor}
+  .badge b{font-size:12.5px;font-weight:650;letter-spacing:-.01em}
+  .badge span{font:600 11px/1 var(--mono);color:var(--ink-3)}
+  .stamp{top:12px;right:12px;background:rgba(4,10,14,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.13);padding:6px 10px;border-radius:9px;font:500 11px/1.5 var(--mono);color:var(--ink-2);text-align:right}
+  .caption{bottom:10px;left:12px;font:600 10.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+
+  .strip{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  @media (max-width:700px){.strip{grid-template-columns:1fr}}
+  .mini{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+  .mini .mh{display:flex;justify-content:space-between;align-items:center;padding:10px 12px 8px}
+  .mini canvas{display:block;width:100%}
+
+  /* meters */
+  .meter{height:5px;border-radius:99px;background:rgba(255,255,255,.10);overflow:hidden}
+  .meter i{display:block;height:100%;border-radius:99px;transition:width .18s ease}
+
+  /* lure picker */
+  .lures{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px}
+  .lure{border:1px solid var(--line-2);background:var(--panel-2);border-radius:10px;cursor:pointer;padding:5px 4px 6px;color:var(--ink-3);font:inherit;font-size:11px;text-align:center}
+  .lure canvas{display:block;width:100%;height:auto}
+  .lure[aria-pressed="true"]{border-color:var(--acc);color:var(--ink);box-shadow:0 0 0 1px var(--acc)}
+  .lure:hover{border-color:rgba(255,255,255,.28)}
+
+  .pats{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px}
+  .pat{display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);background:var(--panel-2);border-radius:9px;padding:5px 7px;cursor:pointer;color:var(--ink-2);font:inherit;font-size:11px;text-align:left;line-height:1.2}
+  .pat .chip{width:16px;height:16px;border-radius:5px;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+  .pat[aria-pressed="true"]{border-color:var(--acc);color:var(--ink);box-shadow:0 0 0 1px var(--acc)}
+  .pat:hover{border-color:rgba(255,255,255,.28)}
+
+  /* ranking */
+  .rank{display:flex;flex-direction:column;gap:7px}
+  .rk{display:grid;grid-template-columns:16px 18px 1fr auto;gap:8px;align-items:center;background:none;border:0;padding:2px 0;color:inherit;font:inherit;cursor:pointer;text-align:left}
+  .rk .n{font:600 10.5px/1 var(--mono);color:var(--ink-3)}
+  .rk .chip{width:18px;height:18px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+  .rk .nm{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rk:hover .nm{color:var(--ink)}
+  .rk .sc{font:600 11px/1 var(--mono);color:var(--ink-3)}
+  .rk.on .nm{color:var(--acc);font-weight:600}
+
+  .fish{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}
+  .fishgrp{grid-column:1/-1;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin:9px 0 0;padding-bottom:3px;border-bottom:1px solid var(--line-2)}
+  .fishgrp:first-child{margin-top:0}
+  .fishb{border:1px solid var(--line-2);background:var(--panel-2);border-radius:10px;
+    padding:3px 3px 5px;cursor:pointer;color:var(--ink-3);font:inherit;text-align:center;line-height:1.2}
+  .fishb canvas{display:block;width:100%;height:auto}
+  .fishb .fn{font-size:11px;font-weight:600;display:block;color:var(--ink-2)}
+  .fishb .fs{font-size:9.5px;display:block;color:var(--ink-3);opacity:.8}
+  .fishb:hover{border-color:rgba(255,255,255,.30)}
+  .fishb[aria-pressed="true"]{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),0 6px 18px rgba(201,242,74,.10)}
+  .fishb[aria-pressed="true"] .fn{color:var(--acc)}
+  .advice{font-size:12.5px;line-height:1.6;color:var(--ink-2)}
+  .advice b{color:#fff;font-weight:650}
+  .advice em{color:var(--acc);font-style:normal;font-weight:600}
+
+  .kv{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line-2)}
+  .kv:last-child{border-bottom:0}
+  .kv span{color:var(--ink-3)}
+  .kv b{font:600 12px/1.4 var(--mono);color:var(--ink)}
+
+  .btn{background:var(--panel-2);border:1px solid var(--line-2);color:var(--ink-2);border-radius:9px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer}
+  .btn:hover{border-color:rgba(255,255,255,.3);color:var(--ink)}
+
+  dialog{border:1px solid var(--line);background:#0b141b;color:var(--ink);border-radius:16px;padding:0;max-width:640px;width:calc(100% - 32px)}
+  dialog::backdrop{background:rgba(2,6,9,.7);backdrop-filter:blur(3px)}
+  dialog .dh{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line-2)}
+  dialog .db{padding:16px 18px 20px;font-size:13px;line-height:1.65;color:var(--ink-2);max-height:65vh;overflow:auto}
+  dialog h3{margin:16px 0 6px;font-size:12.5px;color:var(--ink);letter-spacing:.02em}
+  dialog h3:first-child{margin-top:0}
+  dialog code{font:11.5px var(--mono);background:rgba(255,255,255,.07);padding:1px 5px;border-radius:5px}
+  dialog ul{margin:6px 0;padding-left:18px}
+  dialog li{margin:3px 0}
+  footer{margin-top:22px;color:var(--ink-3);font-size:11.5px;text-align:center}
+
+  /* ── installed-app shell ─────────────────────────────────────── */
+  .tabbar{display:none}
+  @media (max-width:880px){
+    body{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
+    .wrap{padding:calc(10px + env(safe-area-inset-top)) 12px 10px;max-width:100%}
+    header.top{margin-bottom:12px;gap:10px}
+    h1{font-size:17px}
+    .tag{display:none}
+    .top-right{width:100%;margin-left:0}
+    .layout{display:flex;flex-direction:column;gap:0}
+    .col-mid{order:1}.col-left{order:2}.col-right{order:3}
+    /* the fish view stays put while you work the controls */
+    .stage{position:sticky;top:calc(env(safe-area-inset-top));z-index:6;
+      box-shadow:0 12px 30px rgba(2,6,9,.55)}
+    /* only the active tab's panels are in the document */
+    [data-tab]{display:none}
+    body[data-active="water"]    [data-tab="water"],
+    body[data-active="sky"]      [data-tab="sky"],
+    body[data-active="lure"]     [data-tab="lure"],
+    body[data-active="fish"]     [data-tab="fish"],
+    body[data-active="read"]     [data-tab="read"]{display:block}
+    .card{margin-bottom:12px}
+    .strip{grid-template-columns:1fr}
+    .badge{top:8px;left:8px;padding:5px 9px 5px 7px;gap:7px}
+    .badge b{font-size:11.5px}
+    .badge span{font-size:10px}
+    .stamp{top:8px;right:8px;padding:5px 8px;font-size:9.5px;line-height:1.45;max-width:44%}
+    .caption{bottom:7px;left:9px;right:9px;font-size:9px;letter-spacing:.06em;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .btn{padding:6px 10px;font-size:11.5px}
+    .seg button{font-size:11px;padding:5px 3px}
+    footer{padding-bottom:8px}
+    .tabbar{
+      display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;
+      padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+      background:rgba(8,15,20,.92);backdrop-filter:blur(18px);
+      border-top:1px solid var(--line);
+    }
+    .tabbar button{
+      flex:1;background:none;border:0;color:var(--ink-3);font:inherit;font-size:10px;
+      display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;
+      cursor:pointer;letter-spacing:.02em;-webkit-tap-highlight-color:transparent;
+    }
+    .tabbar button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;
+      stroke-linecap:round;stroke-linejoin:round}
+    .tabbar button[aria-selected="true"]{color:var(--acc)}
+  }
+  /* running as an installed app: kill the rubber-band and text selection */
+  @media (display-mode:standalone){
+    html,body{overscroll-behavior:none}
+    body{-webkit-user-select:none;user-select:none}
+    .advice,.hint,.kv,dialog .db{-webkit-user-select:text;user-select:text}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M2 12c4-6 10-7 14-4l4-3-1.5 7L20 19l-4-3c-4 3-10 2-14-4z" fill="#07110a" opacity=".85"/><circle cx="7.5" cy="10.5" r="1.5" fill="#07110a"/></svg>
+      </div>
+      <div>
+        <h1>Deep Sight</h1>
+        <div class="tag">Spectral lure &amp; bait color simulator — see it the way the fish does</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="seg sm" role="group" aria-label="Units" style="width:104px">
+        <button data-unit="m" aria-pressed="true">m</button>
+        <button data-unit="ft" aria-pressed="false">ft</button>
+      </div>
+      <button class="btn" id="copyLink">Copy setup link</button>
+      <button class="btn" id="infoBtn">How it works</button>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- ================= LEFT ================= -->
+    <div class="col-left">
+      <section class="card" data-tab="water">
+        <div class="hd"><span class="lbl">Water</span></div>
+        <div class="bd">
+          <div class="waters" id="waters"></div>
+        </div>
+      </section>
+
+      <section class="card" data-tab="sky">
+        <div class="hd"><span class="lbl">Light &amp; sky</span></div>
+        <div class="bd">
+          <div class="seg" role="group" aria-label="Light preset" id="lightSeg" style="flex-wrap:wrap"></div>
+          <canvas id="sunbar" style="width:100%;height:58px;display:block;margin:11px 0 4px;border-radius:8px"></canvas>
+          <div class="hint" id="sunInfo" style="margin-bottom:5px"></div>
+          <div class="hint" id="edgeInfo" style="margin-bottom:10px;color:var(--ink-2)"></div>
+          <div class="row"><span class="lbl">Date</span><span class="val" id="doyVal">—</span></div>
+          <input type="range" id="doy" min="1" max="365" value="250" aria-label="Day of year">
+          <div class="row" style="margin-top:7px"><span class="lbl">Time</span><span class="val" id="hourVal">—</span></div>
+          <input type="range" id="hour" min="0" max="1435" step="5" value="450" aria-label="Time of day">
+          <div class="row" style="margin-top:7px"><span class="lbl">Cloud cover</span><span class="val" id="cloudVal">—</span></div>
+          <input type="range" id="cloud" min="0" max="100" value="45" aria-label="Cloud cover">
+          <div class="row" style="margin-top:7px"><span class="lbl">Moon</span><span class="val" id="moonVal">—</span></div>
+          <input type="range" id="moon" min="0" max="100" value="50" aria-label="Moon phase">
+          <div class="row" style="margin-top:7px"><span class="lbl">Latitude</span><span class="val" id="latVal">—</span></div>
+          <input type="range" id="lat" min="0" max="66" step="0.5" value="52" aria-label="Latitude">
+        </div>
+      </section>
+
+      <section class="card" data-tab="sky">
+        <div class="bd">
+          <div class="row"><span class="lbl">Depth of lure</span><span class="val" id="depthVal">2.0 m</span></div>
+          <input type="range" id="depth" min="0" max="100" value="24" aria-label="Depth">
+          <div style="height:12px"></div>
+          <div class="row"><span class="lbl">Fish's distance</span><span class="val" id="distVal">1.5 m</span></div>
+          <input type="range" id="dist" min="0" max="100" value="30" aria-label="Distance from fish to lure">
+          <div class="hint" style="margin-top:9px">How far the fish is when it decides to eat. Turbid water kills color long before it kills contrast.</div>
+        </div>
+      </section>
+
+      <section class="card" data-tab="fish">
+        <div class="hd"><span class="lbl">The observer</span></div>
+        <div class="bd">
+          <div class="fish" id="fishPick" role="group" aria-label="Fish species"></div>
+          <div class="hint" id="spNote" style="margin-top:10px"></div>
+          <div style="height:12px"></div>
+          <div class="lbl" style="margin-bottom:6px">Viewing angle</div>
+          <div class="seg" role="group" aria-label="Viewing angle" id="angleSeg">
+            <button data-angle="level" aria-pressed="true">Side-on</button>
+            <button data-angle="up" aria-pressed="false">Below ↑</button>
+            <button data-angle="down" aria-pressed="false">Above ↓</button>
+          </div>
+          <div id="botWrap" style="margin-top:8px;display:none">
+            <div class="lbl" style="margin-bottom:5px">Bottom</div>
+            <div class="seg" role="group" aria-label="Bottom type" id="botSeg" style="flex-wrap:wrap"></div>
+            <div class="row" style="margin-top:9px"><span class="lbl">Lure rides above it</span><span class="val" id="gapVal">—</span></div>
+            <input type="range" id="gap" min="5" max="300" step="5" value="35" aria-label="Height above the bottom">
+          </div>
+          <div class="hint" id="angleHint" style="margin-top:9px"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= CENTER ================= -->
+    <div class="col-mid">
+      <div class="stage">
+        <canvas id="scene" width="1120" height="760"></canvas>
+        <div class="ov badge">
+          <span class="dot" id="vDot"></span>
+          <div>
+            <b id="vWord">—</b>
+            <span id="vSub"> </span>
+          </div>
+        </div>
+        <div class="ov stamp" id="stamp"></div>
+        <div class="ov caption" id="sceneCap">Fish's eye view</div>
+      </div>
+
+      <div class="strip" data-tab="read">
+        <div class="mini">
+          <div class="mh"><span class="lbl">In your hand — true color</span><span class="hint" id="patName"></span></div>
+          <canvas id="truth" width="760" height="300"></canvas>
+        </div>
+        <div class="mini">
+          <div class="mh"><span class="lbl">Light surviving at depth</span><span class="hint" id="lightPct"></span></div>
+          <canvas id="spec" style="height:120px"></canvas>
+        </div>
+      </div>
+
+      <div class="mini" data-tab="read" style="margin-top:14px">
+        <div class="mh"><span class="lbl">Color loss with depth</span><span class="hint">same lure, same water — dropped deeper</span></div>
+        <canvas id="ladder" style="height:118px"></canvas>
+      </div>
+
+      <div class="mini" data-tab="read" style="margin-top:14px">
+        <div class="mh"><span class="lbl">How far it can be seen</span><span class="hint" id="rangeNote"></span></div>
+        <canvas id="range" style="height:170px"></canvas>
+      </div>
+
+      <div class="strip" data-tab="read" style="grid-template-columns:1.35fr 1fr;margin-top:14px">
+        <section class="card" style="margin:0">
+          <div class="hd"><span class="lbl">Read on these conditions</span></div>
+          <div class="bd">
+            <div class="advice" id="advice"></div>
+            <div style="height:10px"></div>
+            <div class="kv"><span>Brightness contrast</span><b id="kContrast">—</b></div>
+            <div class="kv"><span>Hue separation from water</span><b id="kChroma">—</b></div>
+            <div class="kv"><span>Hue counts for</span><b id="kWc">—</b></div>
+            <div class="kv"><span>Reads like local forage</span><b id="kMatch">—</b></div>
+            <div class="kv"><span>Detection range</span><b id="kDet">—</b></div>
+            <div class="kv"><span>Useful visual range</span><b id="kRange">—</b></div>
+            <div class="kv"><span>Water clarity</span><b id="kSecchi">—</b></div>
+          </div>
+        </section>
+        <section class="card" style="margin:0">
+          <div class="hd"><span class="lbl">Best patterns here</span></div>
+          <div class="bd"><div class="rank" id="rank"></div></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ================= RIGHT ================= -->
+    <div class="col-right">
+      <section class="card" data-tab="lure">
+        <div class="hd"><span class="lbl">Lure type</span></div>
+        <div class="bd">
+          <div class="lures" id="lures"></div>
+          <div class="row" style="margin-top:12px"><span class="lbl">Length</span><span class="val" id="sizeVal">10.0 cm</span></div>
+          <input type="range" id="size" min="30" max="300" step="5" value="100" aria-label="Lure length">
+          <div class="hint" style="margin-top:4px">Fox Rage Zander Pro Shad ships at 7.5 / 10 / 14 cm. Size sets how far away the fish can resolve it at all.</div>
+        </div>
+      </section>
+
+      <section class="card" data-tab="lure">
+        <div class="hd"><span class="lbl">Color pattern</span></div>
+        <div class="bd"><div class="pats" id="pats"></div></div>
+      </section>
+
+    </div>
+  </div>
+
+  <nav class="tabbar" id="tabbar" role="tablist" aria-label="Sections">
+    <button role="tab" data-t="water" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M3 8c3-3 6 3 9 0s6-3 9 0M3 15c3-3 6 3 9 0s6-3 9 0"/></svg>Water</button>
+    <button role="tab" data-t="sky" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7"/></svg>Sky</button>
+    <button role="tab" data-t="lure" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M2 12c4-5 9-6 13-3l4-2.5-1.4 5.5L19 18l-4-2.6C11 18 6 17 2 12z"/><circle cx="6.6" cy="10.6" r="1.1" fill="currentColor" stroke="none"/></svg>Lure</button>
+    <button role="tab" data-t="fish" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M1.8 12S5 6.4 12 6.4 22.2 12 22.2 12 19 17.6 12 17.6 1.8 12 1.8 12z"/><circle cx="12" cy="12" r="2.8"/></svg>Fish</button>
+    <button role="tab" data-t="read" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M3.5 19.5V13M9 19.5V6.5M14.5 19.5v-8M20 19.5V9"/></svg>Read</button>
+  </nav>
+
+  <footer>A physical model, not a fish. Real strikes depend on vibration, silhouette, speed and mood as much as color.</footer>
+</div>
+
+<dialog id="info">
+  <div class="dh"><b style="font-size:14px">How this simulation works</b><button class="btn" id="closeInfo">Close</button></div>
+  <div class="db">
+    <p>Everything you see is computed from spectra on a 400–700&nbsp;nm grid at 5&nbsp;nm resolution. No color filters, no guessing.</p>
+
+    <h3>1. Light entering the water</h3>
+    <p>The sky is modelled as a Planck blackbody at the colour temperature of the condition you pick (bright sun ≈ 5800&nbsp;K, overcast ≈ 7000&nbsp;K, dusk ≈ 3100&nbsp;K, moonlight ≈ 4100&nbsp;K), scaled by realistic relative intensity — moonlight is roughly a millionth of noon sun.</p>
+
+    <h3>2. The water column</h3>
+    <p>Each water type is built from three real optical constituents, not a paint colour:</p>
+    <ul>
+      <li><b>Pure water absorption</b> <code>a_w(λ)</code> — Pope &amp; Fry values. This is why red dies first.</li>
+      <li><b>CDOM / tannin</b> — <code>a_g(λ) = G·e^(−0.0165(λ−440))</code>. Crushes blue, leaves red. Tea-stained lakes.</li>
+      <li><b>Chlorophyll</b> — absorption peaks at 440 and 675&nbsp;nm, leaving a green window.</li>
+      <li><b>Suspended sediment</b> — strong scattering <code>b(λ)</code> plus mineral absorption. Mud kills contrast, not just colour.</li>
+    </ul>
+    <p>Downwelling light attenuates as <code>E(λ,d) = E₀(λ)·e^(−K_d(λ)·d)</code>. The horizontal path from lure to eye uses beam attenuation <code>c = a + b</code>, and lost radiance is replaced by <b>veiling light</b> — the backscattered glow that washes a lure into the background in muddy water.</p>
+
+    <h3>3. Lure reflectance</h3>
+    <p>Each colour is a hand-authored reflectance spectrum, not an RGB triple — so "red" genuinely reflects only above 590&nbsp;nm and genuinely turns black at depth. Fluorescent colours additionally absorb short-wavelength energy and re-emit it in their own band, which is why they hold visibility deeper than their non-fluorescent equivalents.</p>
+
+    <h3>4. The fish's eye</h3>
+    <p>Cone sensitivities use the Govardovskii A1 visual-pigment template at each species' measured λmax:</p>
+    <ul>
+      <li><b>Snoek</b> (northern pike) — 460 / 530 / 615&nbsp;nm. Trichromat, so blue still reaches it.</li>
+      <li><b>Snoekbaars</b> (zander) — dichromat, 533 &amp; 613&nbsp;nm, plus a tapetum lucidum. The turbid-water, low-light specialist of the Dutch canals.</li>
+      <li><b>Baars</b> (European perch) — 460 / 537 / 617&nbsp;nm. The sharpest daylight colour vision in the canal.</li>
+      <li><b>Roofblei</b> (asp) — 455 / 535 / 620&nbsp;nm.</li>
+      <li><b>Karper</b> and <b>blankvoorn</b> — cyprinids with a fourth, ultraviolet cone near 365&nbsp;nm. That channel is real and this screen cannot render it.</li>
+      <li><b>Meerval</b> (wels catfish) — 540 &amp; 615&nbsp;nm over a rod-dominated retina. It hunts by barbel and lateral line.</li>
+      <li><b>Paling</b> (European eel) — effectively monochromatic, one pigment near 523&nbsp;nm. Brightness only.</li>
+      <li><b>Largemouth bass</b> — dichromat, 535 &amp; 614&nbsp;nm. Nearly blind to blue.</li>
+      <li><b>Walleye</b> — 533 &amp; 605&nbsp;nm. <b>Rainbow trout</b> — 434 / 531 / 576&nbsp;nm. <b>Bluegill</b> — 455 / 535 / 625&nbsp;nm.</li>
+    </ul>
+    <p>Two water presets are tuned for the Netherlands: <b>Polder canal</b> (moderate tannin, a real algae load, some suspended silt — the summer default) and <b>Winter canal</b>, when the algae dies back and the same water becomes dramatically clearer. Switching between them with the same lure is the single most instructive thing on this page.</p>
+    <p>Dichromat views are rendered on the orange↔teal axis their two cones actually span. Below scotopic threshold the rod pigment takes over and the image collapses to monochrome — which is exactly when silhouette beats colour.</p>
+
+    <h3>5. Sun, sky and surface</h3>
+    <p>Light is not a preset. The sun's elevation comes from the NOAA solar-position equations for your date, clock time and latitude (Central European time, DST approximated to the usual late-March→late-October window). Utrecht on 21 June resolves to sunrise 05:18 and sunset 22:03; on 21 December, 08:46 and 16:29 — both within a minute of the true times.</p>
+    <p>The sky spectrum is then built from that elevation: Kasten–Young air mass, Rayleigh optical depth <code>τ_R = 0.008735·λ⁻⁴·⁰⁸</code> and an Ångström aerosol term. The reddening at sunset and the collapse in intensity both fall out of the physics — neither is drawn in by hand. Cloud cover shifts direct light into diffuse and attenuates the total.</p>
+    <p>Two surface effects matter more than anglers expect. <b>Fresnel reflection</b>: with the sun low, much of the light bounces off the water rather than entering it — transmission falls from ~96% at noon to under 80% near the horizon. And the refracted beam runs at a slant, so it covers more water per metre of depth, which raises the effective <code>K_d</code>. Below the horizon the model crosses over to twilight and then to a moonlight floor set by the moon-phase control.</p>
+
+    <h3>6. How far away it can be seen</h3>
+    <p>Contrast alone doesn't decide detection — angular size does too. The lure subtends <code>α = 2·atan(L/2r)</code>, and the contrast threshold climbs as α approaches the eye's minimum resolvable angle: <code>ε = ε₀·(1 + (4·MAR/α)²)</code>, with ε₀ rising as the rods take over. Detection range is where that index crosses 1.</p>
+    <p>This is why lure size buys you very little in a turbid canal — there, range is capped by contrast, not resolution — and a great deal in clear water. It is also why the <b>meerval</b> and the <b>paling</b>, with far coarser acuity, see the same lure at roughly half the range a perch does.</p>
+
+    <h3>7. The predator's edge — why dusk</h3>
+    <p>The day strip carries a second, green trace. It is not light: it is the ratio of how far <em>your</em> fish can see the lure to how far a <b>blankvoorn</b> can, computed every half hour. The shaded bands are where that ratio peaks.</p>
+    <p>Nothing about this is folklore — it falls straight out of the eye models. A zander's tapetum lucidum and low rod threshold keep it seeing after a roach has effectively gone blind, so the ratio climbs as the light collapses and falls back to ~1.0 at midday when both see perfectly well. In a polder canal in September that puts the peak near 06:00 and 20:30, at about <b>8×</b>. Run the same numbers for a <b>roofblei</b> and you get 1.8×; for a <b>rainbow trout</b>, no window at all. Those are daylight hunters, and the model says so without being told.</p>
+    <p>Change the date and the windows move with the Dutch daylight — 08:00 and 17:00 in late December, 04:00 and 22:30 in June.</p>
+
+    <h3>8. Local forage</h3>
+    <p>The forage group holds what a Dutch predator actually eats — blankvoorn, alver, baarsje, pos and the now-ubiquitous zwartbekgrondel. The match figure is the distance between your lure and the nearest of them in <em>the selected fish's own cone space</em>, under the current conditions. High means your lure reads as food; low means it reads as an intruder. Both catch fish; they are different arguments, and it helps to know which one you are making.</p>
+
+    <h3>9. Visibility score</h3>
+    <p>Weber contrast in cone-excitation space (achromatic) combined with chromatic separation in the fish's own opponent channel, gated by whether there are enough photons for the species to detect anything at all.</p>
+    <p>The setup lives in the URL — <b>Copy setup link</b> gives you a link that restores the whole rig.</p>
+    <p style="color:var(--ink-3);margin-top:14px">Coefficients are literature-derived approximations tuned for legibility. Treat it as a good mental model — a strong one — not a laboratory instrument.</p>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════
+   SPECTRAL CORE
+   ══════════════════════════════════════════════════════════════════ */
+const L0=400,L1=700,DL=5,NB=(L1-L0)/DL+1;
+const LAM=Array.from({length:NB},(_,i)=>L0+i*DL);
+
+function curve(anch){
+  const ks=Object.keys(anch).map(Number).sort((a,b)=>a-b);
+  return LAM.map(l=>{
+    if(l<=ks[0])return anch[ks[0]];
+    if(l>=ks[ks.length-1])return anch[ks[ks.length-1]];
+    let i=0;while(ks[i+1]<l)i++;
+    const t=(l-ks[i])/(ks[i+1]-ks[i]);
+    return anch[ks[i]]*(1-t)+anch[ks[i+1]]*t;
+  });
+}
+const flat=v=>LAM.map(()=>v);
+
+/* CIE 1931 colour matching — Wyman/Sloan/Shirley multi-lobe fit */
+function pg(x,mu,s1,s2){const t=(x-mu)*(x<mu?1/s1:1/s2);return Math.exp(-.5*t*t);}
+const CMF=LAM.map(l=>[
+  1.056*pg(l,599.8,37.9,31.0)+0.362*pg(l,442.0,16.0,26.7)-0.065*pg(l,501.1,20.4,26.2),
+  0.821*pg(l,568.8,46.9,40.5)+0.286*pg(l,530.9,16.3,31.1),
+  1.217*pg(l,437.0,11.8,36.0)+0.681*pg(l,459.0,26.0,13.8)
+]);
+function toXYZ(S){let X=0,Y=0,Z=0;for(let i=0;i<NB;i++){X+=S[i]*CMF[i][0];Y+=S[i]*CMF[i][1];Z+=S[i]*CMF[i][2];}return[X*DL,Y*DL,Z*DL];}
+function xyz2lin(x,y,z){return[
+  3.2406*x-1.5372*y-0.4986*z,
+ -0.9689*x+1.8758*y+0.0415*z,
+  0.0557*x-0.2040*y+1.0570*z];}
+const gam=v=>{v=Math.max(0,Math.min(1,v));return v<=0.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-0.055;};
+const tone=v=>v<=0?0:v/(1+v);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const css=(r,g,b)=>`rgb(${Math.round(clamp(r,0,1)*255)},${Math.round(clamp(g,0,1)*255)},${Math.round(clamp(b,0,1)*255)})`;
+
+/* Govardovskii A1 visual pigment template */
+function pigment(lmax){
+  const a=0.8795+0.0459*Math.exp(-Math.pow(lmax-300,2)/11940);
+  const A=69.7,B=28,b=0.922,C=-14.9,c=1.104,D=0.674;
+  const lmb=189+0.315*lmax, bw=-40.5+0.195*lmax;
+  return LAM.map(l=>{
+    const x=lmax/l;
+    const S=1/(Math.exp(A*(a-x))+Math.exp(B*(b-x))+Math.exp(C*(c-x))+D);
+    return S+0.26*Math.exp(-Math.pow((l-lmb)/bw,2));
+  });
+}
+/* Planck, normalised at 560nm */
+function planck(T){
+  const c1=3.7418e-16,c2=1.4388e-2;
+  const f=l=>{const m=l*1e-9;return c1/(Math.pow(m,5)*(Math.exp(c2/(m*T))-1));};
+  const n=f(560);
+  return LAM.map(l=>f(l)/n);
+}
+
+/* ── Pure water inherent optical properties ───────────────────── */
+const A_W=curve({400:.00663,410:.00473,420:.00454,430:.00495,440:.00635,450:.00922,460:.00979,
+  470:.0106,480:.0127,490:.0150,500:.0204,510:.0325,520:.0409,530:.0434,540:.0474,550:.0565,
+  560:.0619,570:.0695,580:.0896,590:.1351,600:.2224,610:.2644,620:.2755,630:.2916,640:.3108,
+  650:.3400,660:.4100,670:.4390,680:.4650,690:.5160,700:.6240});
+const B_W=LAM.map(l=>0.0038*Math.pow(400/l,4.32));
+
+/* ══════════════════════════════════════════════════════════════════
+   WATER TYPES  (cdom = tannin index, chl = mg/m³, sed = turbidity)
+   ══════════════════════════════════════════════════════════════════ */
+// how high the lure rides above the bottom — a jig on the deck and a suspended
+// jerkbait are different problems, so this is a control, not a constant
+const BOT_GAP_DEF=0.35;
+const BOTTOMS=[
+  {id:'silt', name:'Silt / clay', r:curve({400:.035,450:.045,500:.07,550:.105,600:.135,650:.15,700:.16})},
+  {id:'sand', name:'Sand',        r:curve({400:.11,450:.15,500:.21,550:.27,600:.31,650:.33,700:.34})},
+  {id:'gravel',name:'Gravel',     r:curve({400:.07,450:.09,500:.12,550:.15,600:.17,650:.18,700:.19})},
+  {id:'weed', name:'Weed bed',    r:curve({400:.018,450:.02,500:.045,550:.085,600:.035,650:.022,700:.10})},
+  {id:'leaf', name:'Leaf litter', r:curve({400:.02,450:.028,500:.05,550:.085,600:.12,650:.15,700:.17})}
+];
+const G_GEN='General water types', G_KR='Kromme Rijn · Utrecht (NL)';
+const WATERS=[
+  {g:G_GEN,id:'gin',   name:'Gin clear',        cdom:.02, chl:.15, sed:.02},
+  {g:G_GEN,id:'blue',  name:'Clear blue',       cdom:.05, chl:.6,  sed:.05},
+  {g:G_GEN,id:'lgreen',name:'Light green',      cdom:.18, chl:4,   sed:.25},
+  {g:G_GEN,id:'green', name:'Algae green',      cdom:.35, chl:18,  sed:.6},
+  {g:G_GEN,id:'tea',   name:'Tannic / tea',     cdom:2.6, chl:1.2, sed:.15},
+  {g:G_GEN,id:'stain', name:'Stained river',    cdom:1.1, chl:3,   sed:1.1},
+  {g:G_GEN,id:'muddy', name:'Muddy / chalk',    cdom:.7,  chl:3,   sed:5.0},
+  {g:G_GEN,id:'choc',  name:'Chocolate milk',   cdom:1.4, chl:4,   sed:14 },
+  {g:G_GEN,id:'polder',name:'Polder canal',      cdom:.9,  chl:8,   sed:1.6},
+  {g:G_GEN,id:'winter',name:'Winter canal',      cdom:.5,  chl:.8,  sed:.45},
+  // ── Kromme Rijn, upstream → downstream. Built from the HDSR inrichtingsbeeld and
+  // the KRW factsheet for waterlichaam NL14_2: silt-laden Nederrijn inlet water,
+  // humic + nutrient load off the Langbroekerwetering, a clearer macrophyte
+  // stretch, and nutrient-rich urban water toward Utrecht.
+  {g:G_KR,id:'kr_wijk', name:'Wijk bij Duurstede — inlaat', cdom:.55, chl:2.5, sed:3.0,
+   note:'Where Nederrijn water enters. The KRW factsheet calls this constant, silt-rich inflow "onnatuurlijk" — mineral turbidity, not algae, is what you are fishing here. Grey-brown, and contrast dies fast with distance.'},
+  {g:G_KR,id:'kr_cothen',name:'Cothen — Langbroekerwetering', cdom:2.0, chl:5, sed:1.3,
+   note:'The Langbroekerwetering drains the wooded, peaty Langbroek and HDSR singles it out as having "een aanzienlijk (negatief) effect". Humic staining pushes this stretch amber: blue dies first, red carries furthest.'},
+  {g:G_KR,id:'kr_odijk', name:'Werkhoven / Odijk — waterplanten', cdom:.75, chl:2.0, sed:.45,
+   note:'The shallow, weed-lined middle stretch. HDSR notes summer drawdown gives "doorzicht tot op de bodem" and macrophyte growth — the clearest water on the river, where natural patterns earn their keep.'},
+  {g:G_KR,id:'kr_bunnik',name:'Bunnik → Utrecht — stedelijk', cdom:1.0, chl:15, sed:1.1,
+   note:'Slow, nutrient-loaded water: RWZI effluent and urban point sources feed an algal green. The transmission window narrows hard onto green-yellow.'}
+];
+const _optC={};
+function optics(w){
+  if(_optC[w.id])return _optC[w.id];
+  const a=[],b=[],bb=[],Kd=[],c=[],Rw=[];
+  for(let i=0;i<NB;i++){
+    const l=LAM[i];
+    const ag = w.cdom*Math.exp(-0.0165*(l-440));
+    const aph= w.chl*(0.045*Math.exp(-Math.pow((l-440)/32,2))
+                     +0.022*Math.exp(-Math.pow((l-675)/16,2))+0.006);
+    const am = w.sed*0.075*Math.exp(-0.014*(l-440));
+    const bs = w.sed*1.00*Math.pow(550/l,0.6);
+    const bp = w.chl*0.014;
+    const A=A_W[i]+ag+aph+am;
+    const B=B_W[i]+bs+bp;
+    const BB=0.5*B_W[i]+w.sed*0.040*Math.pow(550/l,0.6)+w.chl*0.0009;
+    a[i]=A; b[i]=B; bb[i]=BB;
+    Kd[i]=1.12*A+0.42*B;
+    c[i]=A+0.55*B;   // forward scatter carries some image, but not through heavy mud
+    Rw[i]=0.34*BB/(A+BB);
+  }
+  return (_optC[w.id]={a,b,bb,Kd,c,Rw});
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LIGHT CONDITIONS
+   ══════════════════════════════════════════════════════════════════ */
+/* Reference daylight — used for "true colour" chips and as the adaptation anchor. */
+const REF=planck(5500);
+const SUN_Y=toXYZ(REF)[1];
+
+/* ── Solar position: NOAA low-precision equations ───────────────── */
+const SITE={lon:5.11, name:'Kromme Rijn, Utrecht'};
+function solarDecEq(doy,hour){
+  const g=2*Math.PI/365*(doy-1+(hour-12)/24);
+  return {
+    eq:229.18*(0.000075+0.001868*Math.cos(g)-0.032077*Math.sin(g)
+       -0.014615*Math.cos(2*g)-0.040849*Math.sin(2*g)),
+    dec:0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)
+       +0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g)
+  };
+}
+function solarElev(doy,hour,lat,lon,tz){
+  const {eq,dec}=solarDecEq(doy,hour);
+  const tst=hour*60+eq+4*lon-60*tz;
+  const ha=(tst/4-180)*Math.PI/180, la=lat*Math.PI/180;
+  return 90-Math.acos(clamp(Math.sin(la)*Math.sin(dec)+Math.cos(la)*Math.cos(dec)*Math.cos(ha),-1,1))*180/Math.PI;
+}
+function sunTimes(doy,lat,lon,tz){
+  const {eq,dec}=solarDecEq(doy,12), la=lat*Math.PI/180;
+  const noon=(720-4*lon-eq)/60+tz;
+  const c=(Math.cos(90.833*Math.PI/180)-Math.sin(la)*Math.sin(dec))/(Math.cos(la)*Math.cos(dec));
+  if(c>1) return {rise:null,set:null,noon,polar:'night'};
+  if(c<-1) return {rise:null,set:null,noon,polar:'day'};
+  const ha=Math.acos(c)*180/Math.PI;
+  return {rise:noon-ha/15, set:noon+ha/15, noon, polar:null};
+}
+/* Central-European civil time, DST approximated to the usual late-March→late-October window */
+const tzNL=doy=>(doy>=87&&doy<=303)?2:1;
+
+/* ── Atmosphere: Rayleigh + aerosol extinction gives both the sunset
+      reddening and the intensity collapse, with no hand-tuning ───── */
+const SUN_TOA=planck(5778);
+const TAU_R=LAM.map(l=>0.008735*Math.pow(l/1000,-4.08));
+const TAU_A=LAM.map(l=>Math.pow(l/1000,-1.3));
+const MOON_TINT=LAM.map(l=>Math.pow(l/560,0.35));   // lunar regolith reflects redder than the sun
+let _skyK=null,_skyV=null;
+function skyLight(elev,cloud,moon){
+  const key=elev.toFixed(4)+'|'+cloud.toFixed(3)+'|'+moon.toFixed(3);
+  if(key===_skyK)return _skyV;
+  const E=new Array(NB); let dirS=0,difS=0;
+  const z=90-Math.max(elev,0), zr=z*Math.PI/180;
+  const AM=1/(Math.cos(zr)+0.50572*Math.pow(96.07995-z,-1.6364));   // Kasten–Young air mass
+  const beta=0.075, at=1-0.72*cloud*cloud;
+  const twi=elev<0?Math.pow(10,Math.max(elev,-18)*0.25):1;          // below the horizon
+  const blue=elev<0?clamp(-elev/10,0,1):0;                          // the reddened beam is gone
+  for(let i=0;i<NB;i++){
+    const dn=SUN_TOA[i]*Math.exp(-(TAU_R[i]+beta*TAU_A[i])*AM);
+    const dh=dn*Math.max(Math.cos(zr),0);
+    const df=SUN_TOA[i]*Math.exp(-beta*TAU_A[i]*AM)*0.5*(1-Math.exp(-TAU_R[i]*AM))
+             *Math.max(Math.cos(zr),0.10);
+    const dirP=(elev<0?0:dh*(1-cloud))*twi*at;
+    let difP=(df+dh*cloud*0.55)*twi*at;
+    difP*=1+blue*(Math.pow(560/LAM[i],1.4)-1);
+    const mn=SUN_TOA[i]*MOON_TINT[i]*1.3e-6*clamp(moon,0,1)*(1-0.55*cloud);
+    E[i]=dirP+difP+mn; dirS+=dirP; difS+=difP+mn;
+  }
+  _skyK=key; return (_skyV={E, directFrac:dirS/(dirS+difS||1), thetaI:Math.min(89,z)});
+}
+/* Unpolarised Fresnel reflectance at the air–water boundary */
+function fresnel(thetaDeg,n){
+  const ti=thetaDeg*Math.PI/180, st=Math.sin(ti)/n;
+  if(st>=1)return 1;
+  const tt=Math.asin(st), ci=Math.cos(ti), ct=Math.cos(tt);
+  return (Math.pow((ci-n*ct)/(ci+n*ct),2)+Math.pow((n*ci-ct)/(n*ci+ct),2))/2;
+}
+const LIGHT_PRESETS=[
+  {id:'noon', name:'Bright noon',  at:'noon', cloud:0},
+  {id:'brok', name:'Broken cloud', at:'noon', cloud:.45},
+  {id:'over', name:'Overcast',     at:'noon', cloud:.95},
+  {id:'dawn', name:'First light',  at:'rise', off:.25, cloud:.35},
+  {id:'dusk', name:'Last light',   at:'set',  off:-.2, cloud:.35},
+  {id:'nite', name:'Night',        at:'fixed',hour:1,  cloud:.3}
+];
+
+/* ══════════════════════════════════════════════════════════════════
+   LURE COLOR REFLECTANCE SPECTRA   (fl = fluorescent gain)
+   ══════════════════════════════════════════════════════════════════ */
+const COL={
+  white:  {s:curve({400:.80,450:.86,500:.89,600:.90,700:.90})},
+  bone:   {s:curve({400:.50,450:.62,500:.76,550:.85,600:.88,700:.88})},
+  black:  {s:flat(.035)},
+  chart:  {s:curve({400:.05,450:.06,480:.12,500:.38,520:.78,545:.92,570:.92,600:.86,650:.82,700:.82}),fl:.55,fle:{c:555,w:45}},
+  orange: {s:curve({400:.05,500:.055,540:.10,570:.36,595:.78,615:.93,660:.95,700:.95}),fl:.45,fle:{c:610,w:38}},
+  red:    {s:curve({400:.05,540:.05,570:.09,600:.42,625:.76,660:.84,700:.86})},
+  pink:   {s:curve({400:.26,450:.32,500:.26,540:.20,575:.42,605:.88,650:.95,700:.95}),fl:.5,fle:{c:625,w:40}},
+  blue:   {s:curve({400:.34,430:.56,462:.62,495:.44,525:.19,565:.07,610:.04,700:.045})},
+  purple: {s:curve({400:.28,430:.40,462:.32,500:.11,545:.05,590:.09,640:.22,700:.30})},
+  melon:  {s:curve({400:.05,450:.06,500:.16,532:.35,552:.32,575:.22,605:.12,650:.10,700:.12})},
+  gpump:  {s:curve({400:.03,450:.04,500:.09,542:.21,572:.23,605:.18,650:.15,700:.17})},
+  olive:  {s:curve({400:.025,450:.03,500:.06,545:.14,580:.15,620:.11,700:.11})},
+  junebug:{s:curve({400:.10,432:.15,465:.12,505:.07,545:.07,585:.05,630:.06,700:.09})},
+  silver: {s:flat(.90),metal:1},
+  gold:   {s:curve({400:.10,450:.14,500:.30,552:.62,585:.80,625:.87,700:.90}),metal:1},
+  shad:   {s:curve({400:.34,500:.42,600:.44,700:.44})},
+  craw:   {s:curve({400:.04,450:.05,500:.09,550:.16,600:.27,650:.33,700:.35})},
+  clearp: {s:flat(.13)},
+  lemon:  {s:curve({400:.06,450:.09,485:.16,515:.50,545:.88,575:.93,610:.90,660:.88,700:.88}),fl:.45,fle:{c:575,w:40}},
+  hotoliv:{s:curve({400:.04,450:.07,500:.22,535:.56,562:.58,592:.44,635:.32,700:.33}),fl:.25,fle:{c:545,w:45}},
+  motoril:{s:curve({400:.03,450:.045,500:.075,550:.13,600:.175,650:.20,700:.21})},
+  saltpep:{s:curve({400:.48,450:.53,500:.56,600:.57,700:.57})},
+  sundnce:{s:curve({400:.05,450:.07,500:.14,540:.42,570:.78,600:.92,650:.93,700:.93}),fl:.50,fle:{c:592,w:40}}
+};
+const CHIP={};
+
+/* ══════════════════════════════════════════════════════════════════
+   PATTERNS
+   ══════════════════════════════════════════════════════════════════ */
+const PATS=[
+  {id:'ftiger',name:'Firetiger',    back:'olive', body:'chart', belly:'orange',acc:'black', bars:1},
+  {id:'chwh',  name:'Chart / White',back:'chart', body:'chart', belly:'white', acc:'chart'},
+  {id:'shad',  name:'Natural shad', back:'blue',  body:'shad',  belly:'white', acc:'black'},
+  {id:'bgill', name:'Bluegill',     back:'olive', body:'gpump', belly:'orange',acc:'blue',  bars:1},
+  {id:'craw',  name:'Red craw',     back:'craw',  body:'craw',  belly:'red',   acc:'orange'},
+  {id:'bkbl',  name:'Black / Blue', back:'black', body:'black', belly:'blue',  acc:'blue'},
+  {id:'gp',    name:'Green pumpkin',back:'gpump', body:'gpump', belly:'gpump', acc:'melon'},
+  {id:'jbug',  name:'Junebug',      back:'junebug',body:'junebug',belly:'junebug',acc:'chart'},
+  {id:'pearl', name:'Pearl white',  back:'white', body:'white', belly:'white', acc:'silver'},
+  {id:'bone',  name:'Bone',         back:'bone',  body:'bone',  belly:'bone',  acc:'black'},
+  {id:'chrbl', name:'Chrome / Blue',back:'blue',  body:'silver',belly:'silver',acc:'black', metal:1},
+  {id:'gldbk', name:'Gold / Black', back:'black', body:'gold',  belly:'gold',  acc:'black', metal:1},
+  {id:'solblk',name:'Solid black',  back:'black', body:'black', belly:'black', acc:'black'},
+  {id:'flor',  name:'Fluoro orange',back:'orange',body:'orange',belly:'white', acc:'black'},
+  {id:'hotpk', name:'Hot pink',     back:'pink',  body:'pink',  belly:'white', acc:'black'},
+  {id:'melred',name:'Watermelon',   back:'melon', body:'melon', belly:'melon', acc:'red'},
+  {id:'solch', name:'Solid chart',  back:'chart', body:'chart', belly:'chart', acc:'chart'},
+  {id:'solpk', name:'Solid pink',   back:'pink',  body:'pink',  belly:'pink',  acc:'pink'},
+  {id:'purp',  name:'Purple',       back:'purple',body:'purple',belly:'purple',acc:'chart'},
+  // ── Fox Rage Ultra UV Zander Pro Shad range — the Dutch zander standard ──
+  {g:1,id:'fr_pink', name:'Pink Candy',      back:'pink',   body:'pink',   belly:'pink',   acc:'silver', metal:1, uv:1},
+  {g:1,id:'fr_purp', name:'Purple Rain',     back:'purple', body:'purple', belly:'purple', acc:'silver', uv:1},
+  {g:1,id:'fr_ayu',  name:'Chartreuse Ayu',  back:'olive',  body:'silver', belly:'chart',  acc:'black', metal:1, uv:1},
+  {g:1,id:'fr_redb', name:'Red Belly Roller',back:'olive',  body:'white',  belly:'red',    acc:'black', uv:1},
+  {g:1,id:'fr_lemon',name:'Lemon Tiger',     back:'lemon',  body:'lemon',  belly:'orange', acc:'black', bars:1, uv:1},
+  {g:1,id:'fr_moil', name:'Motor Oil',       back:'motoril',body:'motoril',belly:'motoril',acc:'gold', uv:1},
+  {g:1,id:'fr_perch',name:'UV Perch',        back:'olive',  body:'gold',   belly:'orange', acc:'black', bars:1, uv:1},
+  {g:1,id:'fr_rhead',name:'Red Head',        back:'red',    body:'white',  belly:'white',  acc:'red', uv:1},
+  {g:1,id:'fr_stick',name:'Stickleback',     back:'olive',  body:'silver', belly:'orange', acc:'black', metal:1, uv:1},
+  {g:1,id:'fr_salt', name:'Salt N Pepper',   back:'saltpep',body:'saltpep',belly:'saltpep',acc:'black', uv:1},
+  {g:1,id:'fr_holiv',name:'Hot Olive',       back:'hotoliv',body:'hotoliv',belly:'chart',  acc:'black', uv:1},
+  {g:1,id:'fr_sun',  name:'Sun Dance',       back:'sundnce',body:'sundnce',belly:'chart',  acc:'black', uv:1},
+  // ── Local forage. Not lures — what the predator actually eats, for comparison. ──
+  {g:2,id:'pr_voorn',  name:'Blankvoorn (roach)', back:'olive',  body:'silver', belly:'white', acc:'orange', metal:1},
+  {g:2,id:'pr_alver',  name:'Alver (bleak)',      back:'blue',   body:'silver', belly:'white', acc:'silver', metal:1},
+  {g:2,id:'pr_baarsje',name:'Baarsje (perch fry)',back:'olive',  body:'gold',   belly:'white', acc:'orange', bars:1},
+  {g:2,id:'pr_grondel',name:'Zwartbekgrondel',    back:'motoril',body:'craw',   belly:'bone',  acc:'black'},
+  {g:2,id:'pr_pos',    name:'Pos (ruffe)',        back:'gpump',  body:'craw',   belly:'bone',  acc:'black'}
+];
+const AREA={back:.26,body:.44,belly:.20,acc:.10};
+
+/* ══════════════════════════════════════════════════════════════════
+   SPECIES
+   ══════════════════════════════════════════════════════════════════ */
+const SPECIES=[
+  // ── Netherlands / European canals & polders ──
+  {g:'Dutch canals & European water',id:'snoek', name:'Snoek — northern pike',      peaks:[460,530,615], rod:530, night:1.3, acuity:.12,
+   note:'Ambush sight-hunter. Trichromat, so blue still registers — unusual among predators.'},
+  {g:'Dutch canals & European water',id:'zander',name:'Snoekbaars — zander',        peaks:[533,613], rod:535, night:4.5, acuity:.20,
+   note:'Tapetum lucidum, like a walleye. Built for stained water, dusk and night — and it hates bright sun.'},
+  {g:'Dutch canals & European water',id:'baars', name:'Baars — European perch',     peaks:[460,537,617], rod:528, night:1.1, acuity:.13,
+   note:'Full trichromat with sharp daylight acuity. The most colour-sensitive predator in the canal.'},
+  {g:'Dutch canals & European water',id:'asp',   name:'Roofblei — asp',             peaks:[455,535,620], rod:525, night:.9, acuity:.11,
+   note:'Surface hunter in moving, clearer water. Daylight animal — poor after dark.'},
+  {g:'Dutch canals & European water',id:'karper',name:'Karper — common carp',       peaks:[450,530,620], rod:523, night:1.0, uv:1, acuity:.15,
+   note:'Tetrachromat: it also has a UV cone at ~365 nm that this simulation cannot draw. It out-sees you.'},
+  {g:'Dutch canals & European water',id:'voorn', name:'Blankvoorn — roach',         peaks:[455,530,600], rod:527, night:.9, uv:1, acuity:.18,
+   note:'Cyprinid with UV sensitivity. Small baits, fine detail, shallow water.'},
+  {g:'Dutch canals & European water',id:'meerval',name:'Meerval — wels catfish',    peaks:[540,615], rod:535, night:5.0, acuity:.55,
+   note:'Rod-dominated and near-blind by our standards. It finds prey by barbel, lateral line and sound — colour is almost irrelevant.'},
+  {g:'Dutch canals & European water',id:'paling',name:'Paling — European eel',      peaks:[523], rod:523, night:6.0, acuity:.60,
+   note:'Effectively monochromatic. The yellow-eel retina is one pigment plus rods — it sees brightness, not colour.'},
+  // ── North America ──
+  {g:'North America',id:'lmb',  name:'Largemouth bass',   peaks:[535,614],     rod:528, night:1.0, acuity:.15},
+  {g:'North America',id:'smb',  name:'Smallmouth bass',   peaks:[537,620],     rod:530, night:1.1, acuity:.15},
+  {g:'North America',id:'wall', name:'Walleye',           peaks:[533,605],     rod:533, night:4.0, acuity:.20},
+  {g:'North America',id:'trout',name:'Rainbow trout',     peaks:[434,531,576], rod:503, night:1.2, acuity:.10},
+  {g:'North America',id:'gill', name:'Bluegill / panfish',peaks:[455,535,625], rod:505, night:.8, acuity:.14},
+  {g:'Reference',id:'human',name:'You (human)',           peaks:null,          rod:507, night:1.0, acuity:.017}
+];
+SPECIES.forEach(s=>{
+  if(s.peaks) s.cones=s.peaks.map(pigment);
+  s.rodS=pigment(s.rod);
+});
+
+/* ══════════════════════════════════════════════════════════════════
+   STATE
+   ══════════════════════════════════════════════════════════════════ */
+const now=new Date();
+const S={water:'polder',depth:2.0,dist:1.5,species:'zander',angle:'level',
+         lure:'jerk',pat:'ftiger',unit:'m',
+         doy:Math.floor((now-new Date(now.getFullYear(),0,0))/864e5),
+         hour:7.5, cloud:.45, moon:.5, lat:52.09, bottom:'silt', size:10, gap:BOT_GAP_DEF};
+const MAXDEPTH=25, MAXDIST=6;
+
+/* ══════════════════════════════════════════════════════════════════
+   RADIANCE PIPELINE
+   ══════════════════════════════════════════════════════════════════ */
+function buildEnv(distOverride){
+  const W=WATERS.find(w=>w.id===S.water), O=optics(W);
+  const dist=distOverride==null?S.dist:distOverride;
+  const tz=tzNL(S.doy);
+  const elev=solarElev(S.doy,S.hour,S.lat,SITE.lon,tz);
+  const sky=skyLight(elev,S.cloud,S.moon);
+  const n=1.34;
+  // Fresnel: at a low sun most of the light bounces off instead of entering
+  const Rdir=fresnel(sky.thetaI,n), Rdif=0.066;
+  const surfT=sky.directFrac*(1-Rdir)+(1-sky.directFrac)*(1-Rdif);
+  // refracted beam runs at a slant, so it travels further per metre of depth
+  const thetaW=Math.asin(Math.min(0.999,Math.sin(sky.thetaI*Math.PI/180)/n));
+  const muD=sky.directFrac*Math.cos(thetaW)+(1-sky.directFrac)*0.80;
+  const Kd=O.Kd.map(k=>k*0.87/Math.max(muD,0.30));
+  const E0=sky.E.map(v=>v*surfT);
+  const E=E0.map((v,i)=>v*Math.exp(-Kd[i]*S.depth));               // irradiance at depth
+  const T=O.c.map(cc=>Math.exp(-cc*dist));                         // path transmission
+  // background the lure is seen against
+  const BOT=BOTTOMS.find(b=>b.id===S.bottom)||BOTTOMS[0];
+  // The bottom sits S.gap below the lure; light reaches it, reflects, and comes back up.
+  const gap=S.gap==null?BOT_GAP_DEF:S.gap;
+  const Ebot=E0.map((v,i)=>v*Math.exp(-Kd[i]*(S.depth+gap)));
+  let bg, veil, lightFactor;
+  if(S.angle==='up'){
+    bg=E.map(v=>v*0.62);                                           // surface / Snell window
+    veil=E.map((v,i)=>v*O.Rw[i]*2.2);                              // path glow, toward the light
+    lightFactor=0.16;                                              // shaded underside
+  }else if(S.angle==='down'){
+    bg=Ebot.map((v,i)=>v*BOT.r[i]*Math.exp(-O.c[i]*gap));          // the bottom, seen through water
+    veil=E.map((v,i)=>v*O.Rw[i]*0.85);
+    lightFactor=1.0;                                               // fully lit back
+  }else{
+    bg=E.map((v,i)=>v*O.Rw[i]);                                    // backscattered water glow
+    veil=E.map((v,i)=>v*O.Rw[i]);
+    lightFactor=0.92;                                              // lit flank
+  }
+  // fluorescence pump: short-wavelength energy available at depth
+  let pump=0; for(let i=0;i<NB;i++){ if(LAM[i]<=525) pump+=E[i]*DL; }
+  return {W,O,Kd,E0,E,T,bg,veil,lightFactor,pump,dist,
+          sun:{elev,tz},sky,surfT,muD,bottom:BOT};
+}
+/* radiance of a lure colour arriving at the fish's eye */
+function radiance(colKey,env){
+  const C=COL[colKey];
+  const out=new Array(NB);
+  for(let i=0;i<NB;i++){
+    let L=env.E[i]*C.s[i]*env.lightFactor;
+    if(C.fl){ // fluorescent re-emission
+      L+=env.pump*C.fl*0.0022*Math.exp(-Math.pow((LAM[i]-C.fle.c)/C.fle.w,2))*env.lightFactor;
+    }
+    out[i]=L*env.T[i]+env.veil[i]*(1-env.T[i]);
+  }
+  return out;
+}
+
+/* ── rendering a radiance spectrum through an eye ─────────────── */
+function adaptState(env){
+  const sp=SPECIES.find(s=>s.id===S.species);
+  const ref=env.E.map(v=>v*0.18+1e-12);              // 18% grey lit by the ambient at depth
+  const Yamb=Math.max(toXYZ(ref)[1],1e-14);
+  const Y0=Math.max(SUN_Y*0.18,1e-12);               // surface-noon reference
+  const bright=clamp(Math.pow(Yamb/Y0,0.14),0.16,1);
+  const thr=2.2e-4*Y0/sp.night;                      // scotopic crossover
+  const rodW=clamp(1/(1+Math.pow(Yamb/thr,0.85)),0,1);
+  return {sp,ref,Yamb,Y0,bright,rodW};
+}
+function makeEye(env){
+  const {sp,ref,Yamb,Y0,bright,rodW}=adaptState(env);
+
+  let adapt=null,prim=null,gain=1;
+  if(sp.cones){
+    const r=sp.cones.map(c=>{let s=0;for(let i=0;i<NB;i++)s+=ref[i]*c[i];return s*DL+1e-14;});
+    const gm=Math.pow(r.reduce((a,b)=>a*b,1),1/r.length);
+    adapt=r.map(v=>Math.pow(v,0.48)*Math.pow(gm,0.52));
+    prim = sp.cones.length===1
+      ? [[0.86,0.94,1.06]]                                         // monochromat — brightness only
+      : sp.cones.length===2
+      ? [[0.06,0.74,1.00],[1.00,0.44,0.03]]                        // teal ↔ orange dichromat axis
+      : [[0.05,0.12,1.0],[0.10,1.0,0.14],[1.0,0.22,0.05]];
+  }else{
+    gain=1/Math.max(Yamb,1e-12);
+  }
+  let rodRef=0;for(let i=0;i<NB;i++)rodRef+=ref[i]*sp.rodS[i];rodRef=rodRef*DL+1e-14;
+
+  return function eye(L){
+    let rgb;
+    if(sp.cones){
+      let cr=sp.cones.map((c,k)=>{let s=0;for(let i=0;i<NB;i++)s+=L[i]*c[i];return (s*DL)/adapt[k];});
+      // opponent gain — pull the cone signals apart so the hue the fish *can* see is legible
+      const mn=cr.reduce((a,b)=>a+b,0)/cr.length;
+      cr=cr.map(v=>Math.max(0,mn+(v-mn)*2.45));
+      let R=0,G=0,B=0;
+      cr.forEach((v,k)=>{R+=v*prim[k][0];G+=v*prim[k][1];B+=v*prim[k][2];});
+      const nrm=prim.reduce((a,p)=>a+p[1],0)||1;
+      rgb=[R/nrm*0.72,G/nrm*0.72,B/nrm*0.72];
+    }else{
+      const[x,y,z]=toXYZ(L);
+      rgb=xyz2lin(x*gain*0.28,y*gain*0.28,z*gain*0.28);
+    }
+    if(rodW>0.01){
+      let rr=0;for(let i=0;i<NB;i++)rr+=L[i]*sp.rodS[i];
+      const g=(rr*DL)/rodRef*0.20;
+      rgb=[rgb[0]*(1-rodW)+g*0.66*rodW, rgb[1]*(1-rodW)+g*0.86*rodW, rgb[2]*(1-rodW)+g*1.06*rodW];
+    }
+    return [gam(tone(rgb[0])*bright),gam(tone(rgb[1])*bright),gam(tone(rgb[2])*bright)];
+  };
+}
+
+/* ── visibility score in the fish's own cone space ─────────────── */
+function scoreOf(Llure,env){
+  const sp=SPECIES.find(s=>s.id===S.species);
+  const cones = sp.cones || [pigment(534),pigment(564),pigment(440)];
+  const cl=cones.map(c=>{let s=0;for(let i=0;i<NB;i++)s+=Llure[i]*c[i];return s*DL+1e-15;});
+  const cb=cones.map(c=>{let s=0;for(let i=0;i<NB;i++)s+=env.bg[i]*c[i];return s*DL+1e-15;});
+  const sl=cl.reduce((a,b)=>a+b,0), sb=cb.reduce((a,b)=>a+b,0);
+  const achrom=Math.abs(sl-sb)/sb;                    // Weber, for the readout
+  const mich=Math.abs(sl-sb)/(sl+sb);                 // bounded 0..1, for the score
+  let chrom=0;
+  for(let k=0;k<cl.length;k++) chrom+=Math.abs(cl[k]/sl-cb[k]/sb);
+  chrom/=2;
+  // photon gate: is there enough light for this species to see at all?
+  const Y0=Math.max(SUN_Y*0.18,1e-12);
+  const Yb=Math.max(toXYZ(env.bg)[1],1e-18);
+  const gate=clamp(0.30+0.70*(Math.log10(Yb/(Y0*1e-7)*sp.night)/5.2),0,1);
+  const fA=Math.pow(clamp(mich,0,1),0.62);            // achromatic (brightness) component
+  const fC=clamp(chrom/0.34,0,1);                     // chromatic (hue) component
+  // How much the hue channel is worth: more cone types = more of it, and it
+  // collapses to nothing once the rods take over in low light.
+  const nC=sp.cones?sp.cones.length:3;
+  const {rodW}=adaptState(env);
+  const wC=(nC===1?0:nC===2?0.32:0.42)*(1-rodW);
+  const score=100*gate*clamp((1-wC)*fA+wC*fC,0,1);
+  return {score, achrom, chrom, mich, gate, wC};
+}
+/* Weber-style detection index. A target is seen when its apparent contrast clears the
+   contrast threshold — and that threshold climbs steeply once the target shrinks toward
+   the eye's resolution limit. So range is set by turbidity AND by how big the lure is. */
+function detectIndex(pat,r,sizeCm){
+  const env=buildEnv(r), sp=SPECIES.find(x=>x.id===S.species);
+  const {rodW}=adaptState(env);
+  let C=0;
+  for(const k of ['back','body','belly','acc']){
+    const d=scoreOf(radiance(pat[k],env),env);
+    const nC=sp.cones?sp.cones.length:3;
+    C+=AREA[k==='acc'?'acc':k]*(d.mich+(nC>1?1.6*d.chrom*(1-rodW):0));
+  }
+  const alpha=2*Math.atan((sizeCm/100)/(2*Math.max(r,0.02)))*180/Math.PI;   // angular size, degrees
+  const acu=sp.acuity||0.15;
+  const eps=0.03*(1+8*rodW)*(1+Math.pow(4*acu/Math.max(alpha,1e-4),2));     // contrast threshold
+  const gate=scoreOf(radiance(pat.body,env),env).gate;
+  return C/eps*gate;
+}
+function detectRange(pat,sizeCm,iters){
+  let lo=0.05,hi=25;
+  if(detectIndex(pat,lo,sizeCm)<1)return 0;
+  if(detectIndex(pat,hi,sizeCm)>=1)return hi;   // capped: reported as "> 25 m"
+  const N=iters||24;
+  for(let i=0;i<N;i++){const m=(lo+hi)/2; if(detectIndex(pat,m,sizeCm)>=1)lo=m; else hi=m;}
+  return lo;
+}
+/* Distance between two patterns in the observer's own cone space, under the current
+   conditions. Small = your lure reads as forage; large = it reads as an intruder. */
+function coneSig(pat,env){
+  const sp=SPECIES.find(x=>x.id===S.species);
+  const cones=sp.cones||[pigment(534),pigment(564),pigment(440)];
+  const sig=[];
+  for(const k of ['back','body','belly','acc']){
+    const L=radiance(pat[k],env);
+    const c=cones.map(cv=>{let t=0;for(let i=0;i<NB;i++)t+=L[i]*cv[i];return t*DL+1e-15;});
+    const sum=c.reduce((a,b)=>a+b,0);
+    const wgt=AREA[k==='acc'?'acc':k];
+    sig.push(...c.map(v=>v/sum*wgt), Math.log10(sum)*0.10*wgt);
+  }
+  return sig;
+}
+function nearestForage(env){
+  const mine=coneSig(PATS.find(p=>p.id===S.pat),env);
+  let best=null,bd=1e9;
+  PATS.filter(p=>p.g===2).forEach(p=>{
+    const o=coneSig(p,env);
+    let d=0;for(let i=0;i<mine.length;i++)d+=(mine[i]-o[i])*(mine[i]-o[i]);
+    d=Math.sqrt(d);
+    if(d<bd){bd=d;best=p;}
+  });
+  return {pat:best, dist:bd, match:clamp(1-bd/0.075,0,1)};
+}
+function patScore(pat,env){
+  let t=0;
+  for(const k of ['back','body','belly','acc'])
+    t+=AREA[k==='acc'?'acc':k]*scoreOf(radiance(pat[k],env),env).score;
+  return t;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LURE GEOMETRY  — drawn in a -120..120 × -60..60 box
+   ══════════════════════════════════════════════════════════════════ */
+function treble(ctx,x,y,s,col){
+  ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+  ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.beginPath();ctx.moveTo(0,-6);ctx.lineTo(0,10);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-7,10);ctx.quadraticCurveTo(-8,20,0,20);ctx.quadraticCurveTo(8,20,7,10);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,14,7,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
+  ctx.restore();
+}
+function eyeDot(ctx,x,y,r,acc){
+  ctx.fillStyle='rgba(255,255,255,.72)';ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.82)';ctx.beginPath();ctx.arc(x,y,r*0.5,0,7);ctx.fill();
+}
+const LURES=[
+  {id:'crank',name:'Crankbait',
+   path(ctx){ctx.beginPath();ctx.moveTo(-72,-4);ctx.bezierCurveTo(-58,-42,20,-46,58,-16);
+     ctx.lineTo(58,16);ctx.bezierCurveTo(20,46,-58,42,-72,4);ctx.closePath();},
+   yT:-44,yB:44,
+   extras(ctx,C,T){
+     ctx.strokeStyle='rgba(150,200,225,'+(0.30+0.35*T)+')';ctx.lineWidth=2;
+     ctx.fillStyle='rgba(150,200,225,'+(0.12+0.16*T)+')';
+     ctx.beginPath();ctx.moveTo(-70,2);ctx.lineTo(-112,34);ctx.lineTo(-100,44);ctx.lineTo(-58,16);ctx.closePath();ctx.fill();ctx.stroke();
+     ctx.beginPath();ctx.moveTo(58,-16);ctx.lineTo(96,-34);ctx.lineTo(90,0);ctx.lineTo(96,34);ctx.lineTo(58,16);
+     ctx.closePath();ctx.fillStyle=C.back;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1.4;ctx.stroke();
+     treble(ctx,-22,30,1,'rgba(210,225,235,'+(0.35+0.45*T)+')');
+     treble(ctx,34,26,1,'rgba(210,225,235,'+(0.35+0.45*T)+')');
+     eyeDot(ctx,-58,-14,6.5,C.acc);
+   }},
+  {id:'jerk',name:'Jerkbait',
+   path(ctx){ctx.beginPath();ctx.moveTo(-96,-2);ctx.bezierCurveTo(-80,-26,10,-28,62,-11);
+     ctx.lineTo(62,11);ctx.bezierCurveTo(10,28,-80,26,-96,2);ctx.closePath();},
+   yT:-27,yB:27,
+   extras(ctx,C,T){
+     ctx.strokeStyle='rgba(150,200,225,'+(0.30+0.35*T)+')';ctx.lineWidth=2;
+     ctx.fillStyle='rgba(150,200,225,'+(0.12+0.16*T)+')';
+     ctx.beginPath();ctx.moveTo(-94,2);ctx.lineTo(-118,20);ctx.lineTo(-110,28);ctx.lineTo(-84,10);ctx.closePath();ctx.fill();ctx.stroke();
+     ctx.beginPath();ctx.moveTo(62,-11);ctx.lineTo(98,-28);ctx.lineTo(92,0);ctx.lineTo(98,28);ctx.lineTo(62,11);
+     ctx.closePath();ctx.fillStyle=C.back;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1.4;ctx.stroke();
+     treble(ctx,-40,20,.9,'rgba(210,225,235,'+(0.35+0.45*T)+')');
+     treble(ctx,26,20,.9,'rgba(210,225,235,'+(0.35+0.45*T)+')');
+     eyeDot(ctx,-80,-9,5.5,C.acc);
+   }},
+  {id:'swim',name:'Swimbait',
+   path(ctx){ctx.beginPath();ctx.moveTo(-92,0);ctx.bezierCurveTo(-78,-34,0,-36,46,-14);
+     ctx.lineTo(52,14);ctx.bezierCurveTo(0,36,-78,34,-92,0);ctx.closePath();},
+   yT:-36,yB:36,
+   extras(ctx,C,T){
+     ctx.beginPath();ctx.moveTo(48,-13);ctx.bezierCurveTo(72,-16,86,-30,96,-14);
+     ctx.bezierCurveTo(104,-2,96,22,74,20);ctx.bezierCurveTo(60,19,52,15,50,13);ctx.closePath();
+     ctx.fillStyle=C.body;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.32)';ctx.lineWidth=1.4;ctx.stroke();
+     ctx.strokeStyle='rgba(0,0,0,.16)';ctx.lineWidth=1;
+     for(let i=0;i<5;i++){ctx.beginPath();ctx.arc(-30+i*17,0,26,-1.0,1.0);ctx.stroke();}
+     treble(ctx,-4,28,1,'rgba(210,225,235,'+(0.35+0.45*T)+')');
+     eyeDot(ctx,-76,-11,6,C.acc);
+   }},
+  {id:'worm',name:'Soft worm',
+   path(ctx){
+     ctx.beginPath();ctx.moveTo(-104,-6);
+     ctx.bezierCurveTo(-60,-26,-20,16,20,-6);
+     ctx.bezierCurveTo(52,-24,74,-6,96,-22);
+     ctx.lineTo(102,-6);
+     ctx.bezierCurveTo(78,10,54,-6,24,10);
+     ctx.bezierCurveTo(-18,32,-58,-8,-100,8);
+     ctx.closePath();},
+   yT:-26,yB:26,
+   extras(ctx,C,T){
+     ctx.strokeStyle='rgba(255,255,255,'+(0.05+0.09*T)+')';ctx.lineWidth=1;
+     for(let i=0;i<9;i++){const x=-96+i*22;ctx.beginPath();ctx.moveTo(x,-14);ctx.lineTo(x+3,12);ctx.stroke();}
+   }},
+  {id:'jig',name:'Jig + trailer',
+   path(ctx){ctx.beginPath();ctx.moveTo(-88,-14);ctx.bezierCurveTo(-70,-34,-40,-30,-34,-8);
+     ctx.lineTo(-34,14);ctx.bezierCurveTo(-52,30,-82,22,-88,4);ctx.closePath();},
+   yT:-32,yB:30,
+   extras(ctx,C,T){
+     ctx.strokeStyle=C.body;ctx.lineWidth=3.2;ctx.lineCap='round';
+     for(let i=0;i<13;i++){
+       const y=-26+i*4.3;
+       ctx.beginPath();ctx.moveTo(-36,y*0.5);
+       ctx.bezierCurveTo(6,y*0.7,40,y*1.15,78,y*1.5);ctx.stroke();
+     }
+     ctx.strokeStyle=C.acc;ctx.lineWidth=2.4;
+     for(let i=0;i<5;i++){const y=-18+i*9;
+       ctx.beginPath();ctx.moveTo(-36,y*0.5);ctx.bezierCurveTo(10,y*0.8,46,y*1.2,84,y*1.6);ctx.stroke();}
+     ctx.strokeStyle='rgba(210,225,235,'+(0.3+0.45*T)+')';ctx.lineWidth=2.6;ctx.lineJoin='round';
+     ctx.beginPath();ctx.moveTo(-56,10);ctx.lineTo(-46,34);ctx.quadraticCurveTo(-28,40,-24,22);ctx.stroke();
+     eyeDot(ctx,-66,-14,6,C.acc);
+   }},
+  {id:'spin',name:'Spinnerbait',
+   path(ctx){ctx.beginPath();ctx.moveTo(-46,4);ctx.bezierCurveTo(-34,-16,-6,-14,0,2);
+     ctx.lineTo(0,20);ctx.bezierCurveTo(-16,34,-40,28,-46,14);ctx.closePath();},
+   yT:-16,yB:34,
+   extras(ctx,C,T){
+     const met='rgba(220,232,240,'+(0.30+0.5*T)+')';
+     ctx.strokeStyle=met;ctx.lineWidth=2.6;ctx.lineJoin='round';ctx.lineCap='round';
+     ctx.beginPath();ctx.moveTo(-40,2);ctx.lineTo(-14,-34);ctx.lineTo(56,-34);ctx.stroke();
+     ctx.fillStyle=C.acc;ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1.2;
+     [[16,-30,13,20],[58,-34,17,26]].forEach(([x,y,rx,ry])=>{
+       ctx.save();ctx.translate(x,y);ctx.rotate(.35);
+       ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,7);ctx.fill();ctx.stroke();
+       const g=ctx.createLinearGradient(-rx,-ry,rx,ry);
+       g.addColorStop(0,'rgba(255,255,255,'+(0.05+0.3*T)+')');g.addColorStop(.5,'rgba(255,255,255,0)');
+       ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,7);ctx.fill();
+       ctx.fillStyle=C.acc;ctx.restore();
+     });
+     ctx.strokeStyle=C.body;ctx.lineWidth=3;
+     for(let i=0;i<12;i++){const y=-4+i*3.6;
+       ctx.beginPath();ctx.moveTo(-2,y);ctx.bezierCurveTo(30,y+2,58,y*1.3+4,88,y*1.5+8);ctx.stroke();}
+     eyeDot(ctx,-28,2,5.5,C.acc);
+   }},
+  {id:'pop',name:'Topwater popper',
+   path(ctx){ctx.beginPath();ctx.moveTo(-74,-26);ctx.quadraticCurveTo(-56,0,-74,26);
+     ctx.bezierCurveTo(-30,44,30,40,60,14);ctx.lineTo(60,-14);
+     ctx.bezierCurveTo(30,-40,-30,-44,-74,-26);ctx.closePath();},
+   yT:-42,yB:42,
+   extras(ctx,C,T){
+     ctx.beginPath();ctx.moveTo(60,-14);ctx.lineTo(100,-30);ctx.lineTo(94,0);ctx.lineTo(100,30);ctx.lineTo(60,14);
+     ctx.closePath();ctx.fillStyle=C.acc;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1.3;ctx.stroke();
+     treble(ctx,-16,32,1,'rgba(210,225,235,'+(0.35+0.45*T)+')');
+     treble(ctx,42,20,.9,'rgba(210,225,235,'+(0.35+0.45*T)+')');
+     eyeDot(ctx,-52,-16,7,C.acc);
+   }},
+  {id:'spoon',name:'Spoon',
+   path(ctx){ctx.beginPath();ctx.moveTo(-84,-6);
+     ctx.bezierCurveTo(-60,-34,40,-40,86,-14);
+     ctx.bezierCurveTo(50,20,-40,30,-84,6);ctx.closePath();},
+   yT:-38,yB:28,
+   extras(ctx,C,T){
+     const g=ctx.createLinearGradient(0,-38,0,28);
+     g.addColorStop(0,'rgba(255,255,255,'+(0.03+0.30*T)+')');
+     g.addColorStop(.42,'rgba(255,255,255,'+(0.02+0.16*T)+')');
+     g.addColorStop(.55,'rgba(0,0,0,'+(0.12*T)+')');
+     g.addColorStop(1,'rgba(0,0,0,'+(0.22*T)+')');
+     ctx.save();this.path(ctx);ctx.clip();ctx.fillStyle=g;ctx.fillRect(-120,-60,240,120);ctx.restore();
+     treble(ctx,66,14,1,'rgba(210,225,235,'+(0.35+0.45*T)+')');
+   }}
+];
+
+/* paint a lure with per-region colours */
+function drawLure(ctx,lure,C,T,pat){
+  ctx.save();
+  lure.path(ctx);ctx.clip();
+  const g=ctx.createLinearGradient(0,lure.yT,0,lure.yB);
+  g.addColorStop(0,C.back);g.addColorStop(.34,C.back);
+  g.addColorStop(.45,C.body);g.addColorStop(.66,C.body);
+  g.addColorStop(.77,C.belly);g.addColorStop(1,C.belly);
+  ctx.fillStyle=g;ctx.fillRect(-130,-70,260,140);
+  if(pat.bars){
+    ctx.globalAlpha=.62;ctx.fillStyle=C.acc;
+    for(let x=-60;x<70;x+=25) ctx.fillRect(x,lure.yT,8,lure.yB-lure.yT);
+    ctx.globalAlpha=1;
+  }
+  if(pat.metal){
+    const m=ctx.createLinearGradient(0,lure.yT,0,lure.yB);
+    m.addColorStop(0,'rgba(255,255,255,0)');
+    m.addColorStop(.40,'rgba(255,255,255,'+(0.34*T)+')');
+    m.addColorStop(.52,'rgba(255,255,255,'+(0.05*T)+')');
+    m.addColorStop(1,'rgba(0,0,0,'+(0.20*T)+')');
+    ctx.fillStyle=m;ctx.fillRect(-130,-70,260,140);
+  }
+  ctx.restore();
+  ctx.save();lure.path(ctx);ctx.strokeStyle='rgba(0,0,0,.38)';ctx.lineWidth=1.6;ctx.stroke();ctx.restore();
+  ctx.save();lure.extras(ctx,C,T);ctx.restore();
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   FISH ART — recognisable side profiles, drawn from outline points
+   ══════════════════════════════════════════════════════════════════ */
+function sm(ctx,p,close){
+  ctx.moveTo(p[0][0],p[0][1]);
+  for(let i=1;i<p.length-1;i++){
+    const xc=(p[i][0]+p[i+1][0])/2, yc=(p[i][1]+p[i+1][1])/2;
+    ctx.quadraticCurveTo(p[i][0],p[i][1],xc,yc);
+  }
+  const n=p.length;
+  ctx.quadraticCurveTo(p[n-2][0],p[n-2][1],p[n-1][0],p[n-1][1]);
+  if(close)ctx.closePath();
+}
+function eelOutline(){
+  const top=[],bot=[];
+  for(let x=-96;x<=90;x+=9){
+    const w=7*Math.sin((x+96)/32);
+    const t=10*Math.min(1,(x+102)/24)*(1-Math.max(0,(x-30)/70)*0.62);
+    top.push([x,w-t]); bot.unshift([x,w+t]);
+  }
+  return top.concat(bot,[top[0]]);
+}
+const FISH={
+ snoek:{out:[[-100,-3],[-74,-13],[-34,-19],[8,-20],[46,-18],[74,-12],[82,-8],[82,8],[74,13],[46,19],[8,21],[-34,20],[-74,14],[-100,4],[-100,-3]],
+   fins:[[[30,-19],[44,-40],[68,-37],[72,-12],[30,-19]],[[34,20],[46,36],[66,33],[70,14],[34,20]]],
+   front:[[[-46,12],[-28,28],[-14,15],[-46,12]]],
+   tail:[[82,-8],[104,-28],[96,0],[104,28],[82,8],[82,-8]],
+   eye:[-78,-6,3.4], mouth:[[-100,0],[-82,4],[-62,4]], marks:{t:'spots',n:16,x0:-60,x1:70,light:1}},
+ zander:{out:[[-98,-2],[-76,-11],[-44,-18],[0,-20],[40,-18],[70,-12],[80,-8],[80,8],[70,13],[40,19],[0,22],[-44,20],[-76,12],[-98,3],[-98,-2]],
+   fins:[[[-28,-19],[-22,-40],[6,-37],[12,-19],[-28,-19]],[[24,-19],[30,-34],[56,-31],[60,-14],[24,-19]],[[30,20],[38,34],[58,31],[62,15],[30,20]]],
+   front:[[[-52,14],[-34,30],[-20,17],[-52,14]]],
+   tail:[[80,-8],[102,-26],[94,0],[102,26],[80,8],[80,-8]],
+   eye:[-80,-5,4.6], mouth:[[-98,-1],[-84,4],[-66,5]], marks:{t:'bars',n:6,x0:-40,x1:44,a:.20}, spiny:[-28,-40,6]},
+ baars:{out:[[-92,-4],[-74,-16],[-50,-33],[-14,-39],[18,-33],[48,-23],[70,-13],[78,-8],[78,9],[70,15],[48,23],[18,31],[-14,33],[-50,26],[-74,14],[-92,4],[-92,-4]],
+   fins:[[[-30,-37],[-24,-58],[10,-51],[16,-32],[-30,-37]],[[22,-31],[28,-45],[52,-39],[56,-21],[22,-31]],[[26,26],[34,43],[56,37],[60,20],[26,26]]],
+   front:[[[-46,24],[-36,44],[-22,26],[-46,24]],[[-52,12],[-36,28],[-24,14],[-52,12]]],
+   tail:[[78,-8],[100,-26],[92,0],[100,26],[78,9],[78,-8]],
+   eye:[-74,-13,4.2], mouth:[[-92,-2],[-78,4],[-64,5]], marks:{t:'bars',n:7,x0:-56,x1:46,a:.44}, spiny:[-30,-58,10]},
+ asp:{out:[[-98,-2],[-76,-12],[-44,-22],[0,-24],[44,-19],[72,-11],[82,-7],[82,7],[72,12],[44,21],[0,26],[-44,24],[-76,13],[-98,3],[-98,-2]],
+   fins:[[[-6,-23],[2,-43],[28,-39],[32,-20],[-6,-23]],[[24,24],[32,39],[52,35],[56,18],[24,24]]],
+   front:[[[-50,14],[-32,30],[-18,16],[-50,14]]],
+   tail:[[82,-7],[104,-28],[92,0],[104,28],[82,7],[82,-7]],
+   eye:[-80,-6,3.8], mouth:[[-98,-1],[-86,5],[-70,6]], marks:null},
+ karper:{out:[[-90,2],[-80,-9],[-58,-27],[-20,-37],[20,-37],[56,-29],[76,-16],[84,-8],[84,8],[76,18],[56,30],[20,38],[-20,38],[-58,28],[-80,14],[-90,6],[-90,2]],
+   fins:[[[-18,-36],[6,-52],[44,-46],[62,-24],[-18,-36]],[[44,30],[52,45],[70,37],[74,22],[44,30]]],
+   front:[[[-40,32],[-28,48],[-14,33],[-40,32]],[[-52,14],[-34,32],[-20,17],[-52,14]]],
+   tail:[[84,-8],[106,-30],[96,0],[106,30],[84,8],[84,-8]],
+   eye:[-70,-8,3.8], marks:{t:'scales'},
+   barbels:[[[-88,4],[-78,17],[-60,21]],[[-88,7],[-80,23],[-64,30]]]},
+ voorn:{out:[[-92,0],[-76,-12],[-50,-26],[-14,-31],[24,-27],[58,-18],[78,-9],[78,9],[58,19],[24,29],[-14,33],[-50,28],[-76,14],[-92,4],[-92,0]],
+   fins:[[[-8,-30],[0,-47],[26,-42],[30,-24],[-8,-30]],[[22,28],[30,43],[52,37],[56,20],[22,28]]],
+   front:[[[-44,26],[-34,42],[-20,28],[-44,26]]],
+   tail:[[78,-9],[100,-28],[90,0],[100,28],[78,9],[78,-9]],
+   eye:[-74,-11,4.6], marks:null},
+ meerval:{out:[[-100,-8],[-86,-21],[-58,-25],[-24,-22],[14,-18],[52,-13],[78,-8],[88,-4],[88,6],[78,14],[52,22],[14,27],[-24,27],[-58,26],[-86,18],[-100,6],[-100,-8]],
+   fins:[[[-36,-22],[-30,-35],[-16,-31],[-14,-21],[-36,-22]],[[-2,26],[24,43],[60,32],[80,15],[-2,26]]],
+   front:[[[-56,24],[-40,43],[-24,26],[-56,24]]],
+   tail:[[88,-4],[104,-16],[108,0],[104,16],[88,6],[88,-4]],
+   eye:[-82,-14,2.6], marks:{t:'mottle'},
+   barbels:[[[-98,-7],[-70,-31],[-28,-39]],[[-98,-4],[-72,-25],[-34,-29]],[[-94,8],[-84,25],[-70,31]],[[-92,9],[-84,27],[-74,35]]]},
+ paling:{out:eelOutline(), fins:[], front:[], tail:null, eye:[-88,-3,2.2], marks:null, fringe:1},
+ lmb:{out:[[-94,-6],[-80,-20],[-56,-32],[-18,-36],[18,-31],[52,-22],[74,-13],[80,-8],[80,8],[74,16],[52,24],[18,31],[-18,34],[-56,28],[-80,16],[-94,8],[-94,-6]],
+   fins:[[[-30,-34],[-24,-51],[2,-46],[6,-31],[-30,-34]],[[10,-32],[16,-47],[46,-41],[52,-22],[10,-32]],[[24,28],[32,43],[54,37],[58,20],[24,28]]],
+   front:[[[-50,20],[-38,38],[-24,22],[-50,20]]],
+   tail:[[80,-8],[102,-26],[94,0],[102,26],[80,8],[80,-8]],
+   eye:[-78,-16,4.2], mouth:[[-94,-1],[-74,11],[-56,12]], marks:{t:'blotch'}, spiny:[-30,-51,2]},
+ smb:{out:[[-92,-6],[-78,-20],[-56,-32],[-18,-36],[18,-31],[52,-22],[74,-13],[80,-8],[80,8],[74,16],[52,24],[18,31],[-18,34],[-56,28],[-80,16],[-92,8],[-92,-6]],
+   fins:[[[-30,-34],[-22,-50],[16,-46],[26,-43],[46,-40],[52,-22],[-30,-34]],[[24,28],[32,43],[54,37],[58,20],[24,28]]],
+   front:[[[-50,20],[-38,38],[-24,22],[-50,20]]],
+   tail:[[80,-8],[102,-26],[94,0],[102,26],[80,8],[80,-8]],
+   eye:[-76,-16,4.2], mouth:[[-92,-1],[-78,7],[-64,8]], marks:{t:'bars',n:7,x0:-50,x1:46,a:.26}, spiny:[-30,-50,16]},
+ wall:{out:[[-98,-2],[-76,-11],[-44,-18],[0,-20],[40,-18],[70,-12],[80,-8],[80,8],[70,13],[40,19],[0,22],[-44,20],[-76,12],[-98,3],[-98,-2]],
+   fins:[[[-28,-19],[-22,-40],[6,-37],[12,-19],[-28,-19]],[[24,-19],[30,-34],[56,-31],[60,-14],[24,-19]],[[30,20],[38,34],[58,31],[62,15],[30,20]]],
+   front:[[[-52,14],[-34,30],[-20,17],[-52,14]]],
+   tail:[[80,-8],[102,-26],[94,0],[102,26],[80,8],[80,-8]],
+   eye:[-80,-5,4.8], mouth:[[-98,-1],[-84,4],[-66,5]], marks:{t:'bars',n:6,x0:-40,x1:44,a:.16}, spiny:[-28,-40,6]},
+ trout:{out:[[-96,-2],[-78,-14],[-46,-24],[-6,-27],[34,-24],[62,-16],[78,-10],[78,10],[62,17],[34,25],[-6,29],[-46,26],[-78,14],[-96,4],[-96,-2]],
+   fins:[[[-16,-26],[-8,-45],[18,-41],[22,-23],[-16,-26]],[[48,-19],[54,-29],[64,-27],[64,-16],[48,-19]],[[28,26],[36,41],[56,35],[60,18],[28,26]]],
+   front:[[[-52,16],[-36,33],[-22,18],[-52,16]]],
+   tail:[[78,-10],[98,-23],[92,0],[98,23],[78,10],[78,-10]],
+   eye:[-80,-8,3.8], mouth:[[-96,-1],[-84,4],[-70,5]], marks:{t:'spots',n:26,x0:-60,x1:70,light:0}},
+ gill:{out:[[-72,-6],[-62,-22],[-40,-40],[-6,-48],[28,-40],[56,-26],[72,-14],[78,-8],[78,8],[72,16],[56,30],[28,44],[-6,50],[-40,42],[-62,22],[-72,8],[-72,-6]],
+   fins:[[[-34,-43],[-20,-62],[24,-54],[52,-27],[-34,-43]],[[8,45],[26,58],[54,34],[58,26],[8,45]]],
+   front:[[[-40,20],[-24,40],[-12,22],[-40,20]]],
+   tail:[[78,-8],[98,-22],[92,0],[98,22],[78,8],[78,-8]],
+   eye:[-56,-19,4.2], marks:{t:'bars',n:6,x0:-42,x1:44,a:.20}, flap:[-44,-14,8,5.5]}
+};
+function drawFish(ctx,id){
+  if(id==='human'){ // an eye, not a fish
+    ctx.beginPath();sm(ctx,[[-72,0],[-34,-30],[34,-30],[72,0],[34,30],[-34,30],[-72,0]],true);
+    ctx.fillStyle='#cfdde5';ctx.fill();ctx.strokeStyle='#5d7382';ctx.lineWidth=2.4;ctx.stroke();
+    ctx.fillStyle='#33586e';ctx.beginPath();ctx.arc(0,0,23,0,7);ctx.fill();
+    ctx.fillStyle='#101c24';ctx.beginPath();ctx.arc(0,0,10,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.8)';ctx.beginPath();ctx.arc(-8,-8,4.5,0,7);ctx.fill();
+    return;
+  }
+  const F=FISH[id]; if(!F)return;
+  const FIN='#6d8794', LINE='rgba(18,32,42,.5)';
+  const body=()=>{ctx.beginPath();sm(ctx,F.out,true);};
+  // fins and tail sit behind the body
+  const back=[...(F.fins||[])]; if(F.tail)back.push(F.tail);
+  back.forEach(f=>{ctx.beginPath();sm(ctx,f,true);ctx.fillStyle=FIN;ctx.fill();
+    ctx.strokeStyle=LINE;ctx.lineWidth=1.2;ctx.stroke();});
+  if(F.spiny){ // fin rays on the spiny dorsal
+    ctx.strokeStyle='rgba(18,32,42,.30)';ctx.lineWidth=1.1;
+    for(let i=0;i<5;i++){const x=F.spiny[0]+4+i*7.5;
+      ctx.beginPath();ctx.moveTo(x,-24);ctx.lineTo(x+2,F.spiny[1]+7+i*1.6);ctx.stroke();}
+  }
+  if(F.fringe){ // the eel's continuous fin fringe
+    ctx.strokeStyle=FIN;ctx.lineWidth=7;ctx.lineCap='round';
+    ctx.beginPath();for(let x=4;x<=88;x+=9){const w=7*Math.sin((x+96)/32);
+      x===4?ctx.moveTo(x,w-9):ctx.lineTo(x,w-9);}ctx.stroke();
+    ctx.beginPath();for(let x=26;x<=88;x+=9){const w=7*Math.sin((x+96)/32);
+      x===26?ctx.moveTo(x,w+9):ctx.lineTo(x,w+9);}ctx.stroke();
+  }
+  // body, darker along the back
+  ctx.save();body();ctx.clip();
+  const g=ctx.createLinearGradient(0,-52,0,52);
+  g.addColorStop(0,'#6f8b9b');g.addColorStop(.45,'#a9c0cc');g.addColorStop(1,'#e6eff3');
+  ctx.fillStyle=g;ctx.fillRect(-120,-70,240,140);
+  const M=F.marks;
+  if(M&&M.t==='bars'){ctx.fillStyle='rgba(24,40,52,'+M.a+')';
+    for(let i=0;i<M.n;i++){const x=M.x0+i*(M.x1-M.x0)/M.n;ctx.fillRect(x,-60,6.5,120);}}
+  if(M&&M.t==='spots'){ctx.fillStyle=M.light?'rgba(232,244,250,.55)':'rgba(24,40,52,.42)';
+    let sd=7;const rnd=()=>((sd=sd*1103515245+12345)&0x7fffffff)/0x7fffffff;
+    for(let i=0;i<M.n;i++){const x=M.x0+rnd()*(M.x1-M.x0),y=-26+rnd()*46;
+      ctx.beginPath();ctx.ellipse(x,y,M.light?4.6:2.5,M.light?3:2.5,0,0,7);ctx.fill();}}
+  if(M&&M.t==='blotch'){ctx.fillStyle='rgba(24,40,52,.34)';
+    ctx.beginPath();sm(ctx,[[-60,-2],[-34,-9],[-6,0],[22,-7],[50,-1],[70,3],[50,9],[22,4],[-6,10],[-34,6],[-60,-2]],true);ctx.fill();}
+  if(M&&M.t==='scales'){ctx.strokeStyle='rgba(24,40,52,.20)';ctx.lineWidth=1.1;
+    for(let r=0;r<5;r++)for(let c=0;c<8;c++){
+      ctx.beginPath();ctx.arc(-66+c*20,-26+r*14,9,-0.9,0.9);ctx.stroke();}}
+  if(M&&M.t==='mottle'){ctx.fillStyle='rgba(24,40,52,.24)';
+    let sd=31;const rnd=()=>((sd=sd*1103515245+12345)&0x7fffffff)/0x7fffffff;
+    for(let i=0;i<22;i++){ctx.beginPath();
+      ctx.ellipse(-80+rnd()*170,-20+rnd()*44,7+rnd()*7,4+rnd()*4,0,0,7);ctx.fill();}}
+  ctx.restore();
+  body();ctx.strokeStyle=LINE;ctx.lineWidth=2;ctx.stroke();
+  (F.front||[]).forEach(f=>{ctx.beginPath();sm(ctx,f,true);
+    ctx.fillStyle='rgba(109,135,148,.9)';ctx.fill();ctx.strokeStyle=LINE;ctx.lineWidth=1.2;ctx.stroke();});
+  if(F.flap){ctx.fillStyle='rgba(12,22,30,.75)';ctx.beginPath();
+    ctx.ellipse(F.flap[0],F.flap[1],F.flap[2],F.flap[3],0,0,7);ctx.fill();}
+  (F.barbels||[]).forEach(b=>{ctx.beginPath();ctx.moveTo(b[0][0],b[0][1]);
+    ctx.quadraticCurveTo(b[1][0],b[1][1],b[2][0],b[2][1]);
+    ctx.strokeStyle='rgba(109,135,148,.95)';ctx.lineWidth=2.2;ctx.lineCap='round';ctx.stroke();});
+  if(F.mouth){ctx.beginPath();ctx.moveTo(F.mouth[0][0],F.mouth[0][1]);
+    ctx.quadraticCurveTo(F.mouth[1][0],F.mouth[1][1],F.mouth[2][0],F.mouth[2][1]);
+    ctx.strokeStyle=LINE;ctx.lineWidth=1.8;ctx.stroke();}
+  const e=F.eye;
+  ctx.fillStyle='#f0f6f9';ctx.beginPath();ctx.arc(e[0],e[1],e[2],0,7);ctx.fill();
+  ctx.fillStyle='#14232c';ctx.beginPath();ctx.arc(e[0],e[1],e[2]*0.56,0,7);ctx.fill();
+  ctx.strokeStyle=LINE;ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(e[0],e[1],e[2],0,7);ctx.stroke();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UI BUILD
+   ══════════════════════════════════════════════════════════════════ */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+function waterSwatch(w){ // fixed exposure so clear water reads dark, muddy water reads bright
+  const O=optics(w), E0=REF;
+  const L=E0.map((v,i)=>v*O.Rw[i]*Math.exp(-O.Kd[i]*0.45));
+  const[x,y,z]=toXYZ(L);const s=5.0/SUN_Y;
+  const[r,g,b]=xyz2lin(x*s,y*s,z*s);
+  return[gam(tone(r)),gam(tone(g)),gam(tone(b))];
+}
+(function buildWaters(){
+  const host=$('#waters');let cur=null;
+  WATERS.forEach(w=>{
+    if(w.g!==cur){cur=w.g;const h=document.createElement('div');
+      h.className='fishgrp';h.textContent=cur;host.appendChild(h);}
+    const c=waterSwatch(w);
+    const b=document.createElement('button');
+    b.className='water';b.type='button';b.dataset.id=w.id;
+    b.setAttribute('aria-pressed',String(w.id===S.water));
+    b.innerHTML=`<span class="sw" style="background:linear-gradient(180deg,
+      ${css(c[0]*1.35,c[1]*1.35,c[2]*1.35)},${css(c[0]*.5,c[1]*.5,c[2]*.5)})"></span>
+      <span class="nm">${w.name}</span>`;
+    b.title=w.note||w.name;
+    b.onclick=()=>{S.water=w.id;syncPressed('#waters .water','id',S.water);render();};
+    host.appendChild(b);
+  });
+})();
+const hhmm=h=>{h=((h%24)+24)%24;const m=Math.round(h*60);
+  return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function doyLabel(d){const dt=new Date(2025,0,1);dt.setDate(d);return dt.getDate()+' '+MON[dt.getMonth()];}
+const moonLabel=v=>v<.06?'New':v<.32?'Crescent':v<.68?'Half':v<.9?'Gibbous':'Full';
+(function buildLights(){
+  const host=$('#lightSeg');
+  LIGHT_PRESETS.forEach(l=>{
+    const b=document.createElement('button');b.type='button';b.dataset.id=l.id;
+    b.textContent=l.name;b.style.flex='1 0 30%';
+    b.onclick=()=>{
+      const t=sunTimes(S.doy,S.lat,SITE.lon,tzNL(S.doy));
+      S.cloud=l.cloud;
+      if(l.at==='noon')S.hour=t.noon;
+      else if(l.at==='rise')S.hour=(t.rise==null?6:t.rise)+l.off;
+      else if(l.at==='set')S.hour=(t.set==null?21:t.set)+l.off;
+      else S.hour=l.hour;
+      S.hour=clamp(S.hour,0,23.9);
+      syncSliders();render();
+    };
+    host.appendChild(b);
+  });
+})();
+(function buildBottoms(){
+  const host=$('#botSeg');
+  BOTTOMS.forEach(t=>{
+    const b=document.createElement('button');b.type='button';b.dataset.id=t.id;
+    b.textContent=t.name;b.style.flex='1 0 45%';
+    b.setAttribute('aria-pressed',String(t.id===S.bottom));
+    b.onclick=()=>{S.bottom=t.id;syncPressed('#botSeg button','id',S.bottom);render();};
+    host.appendChild(b);
+  });
+})();
+(function buildSpecies(){
+  const host=$('#fishPick');let cur=null;
+  SPECIES.forEach(sp=>{
+    if(sp.g!==cur){cur=sp.g;const h=document.createElement('div');
+      h.className='fishgrp';h.textContent=cur;host.appendChild(h);}
+    const parts=sp.name.split(' — ');
+    const b=document.createElement('button');
+    b.type='button';b.className='fishb';b.dataset.id=sp.id;
+    b.setAttribute('aria-pressed',String(sp.id===S.species));
+    b.title=sp.name;
+    const cv=document.createElement('canvas');cv.width=300;cv.height=132;b.appendChild(cv);
+    const lab=document.createElement('span');lab.className='fn';lab.textContent=parts[0];
+    b.appendChild(lab);
+    if(parts[1]){const sub2=document.createElement('span');sub2.className='fs';sub2.textContent=parts[1];b.appendChild(sub2);}
+    const c=cv.getContext('2d');
+    c.translate(150,66);c.scale(1.30,1.30);
+    drawFish(c,sp.id);
+    b.onclick=()=>{S.species=sp.id;syncPressed('#fishPick .fishb','id',S.species);render();};
+    host.appendChild(b);
+  });
+})();
+(function buildLures(){
+  const host=$('#lures');
+  LURES.forEach(l=>{
+    const b=document.createElement('button');b.type='button';b.className='lure';b.dataset.id=l.id;
+    b.setAttribute('aria-pressed',String(l.id===S.lure));
+    const cv=document.createElement('canvas');cv.width=260;cv.height=140;
+    b.appendChild(cv);
+    const lab=document.createElement('div');lab.textContent=l.name;b.appendChild(lab);
+    const c=cv.getContext('2d');
+    c.translate(130,70);c.scale(0.52,0.52);
+    const grey={back:'#8fa3ad',body:'#b6c6ce',belly:'#dbe6ea',acc:'#5d6f79'};
+    drawLure(c,l,grey,1,{});
+    b.onclick=()=>{S.lure=l.id;syncPressed('#lures .lure','id',S.lure);render();};
+    host.appendChild(b);
+  });
+})();
+(function buildPats(){
+  const host=$('#pats');let cur=null;
+  PATS.forEach(p=>{
+    const g=p.g===2?'Local forage — what it actually eats':p.g?'Fox Rage Ultra UV — Zander Pro Shad':'Classic patterns';
+    if(g!==cur){cur=g;const h=document.createElement('div');
+      h.className='fishgrp';h.textContent=cur;host.appendChild(h);}
+    const b=document.createElement('button');b.type='button';b.className='pat';b.dataset.id=p.id;
+    b.setAttribute('aria-pressed',String(p.id===S.pat));
+    b.innerHTML=`<span class="chip" data-chip="${p.id}"></span><span>${p.name}</span>`;
+    b.onclick=()=>{S.pat=p.id;syncPressed('#pats .pat','id',S.pat);render();};
+    host.appendChild(b);
+  });
+})();
+function syncPressed(sel,key,val){$$(sel).forEach(e=>e.setAttribute('aria-pressed',String(e.dataset[key]===val)));}
+
+/* true daylight colour of a reflectance, for chips */
+function trueColor(colKey){
+  if(CHIP[colKey])return CHIP[colKey];
+  const L=REF.map((v,i)=>v*COL[colKey].s[i]);
+  const[x,y,z]=toXYZ(L);
+  const s=0.92/SUN_Y;
+  const[r,g,b]=xyz2lin(x*s,y*s,z*s);
+  const out=[gam(r),gam(g),gam(b)];
+  CHIP[colKey]=out;return out;
+}
+function patChipCSS(p){
+  const a=trueColor(p.body),b=trueColor(p.belly),c=trueColor(p.back);
+  return `linear-gradient(160deg,${css(...c)} 0 33%,${css(...a)} 33% 70%,${css(...b)} 70% 100%)`;
+}
+$$('[data-chip]').forEach(el=>{el.style.background=patChipCSS(PATS.find(p=>p.id===el.dataset.chip));});
+
+/* sliders */
+function bindRange(el,setter,fmt){
+  const upd=()=>{el.style.setProperty('--p',(el.value/el.max*100)+'%');setter(+el.value);fmt();render();};
+  el.addEventListener('input',upd);
+  el.style.setProperty('--p',(el.value/el.max*100)+'%');
+}
+const D=$('#depth'),R=$('#dist');
+const fmtLen=m=>S.unit==='m'?m.toFixed(m<10?1:0)+' m':(m*3.28084).toFixed(m<3?1:0)+' ft';
+function fmtDepth(){$('#depthVal').textContent=fmtLen(S.depth);}
+function fmtDist(){$('#distVal').textContent=fmtLen(S.dist);}
+bindRange(D,v=>{S.depth=Math.pow(v/100,1.7)*MAXDEPTH;},fmtDepth);
+bindRange(R,v=>{S.dist=0.2+Math.pow(v/100,1.6)*(MAXDIST-0.2);},fmtDist);
+S.depth=Math.pow(D.value/100,1.7)*MAXDEPTH; S.dist=0.2+Math.pow(R.value/100,1.6)*(MAXDIST-0.2);
+
+/* sky + size sliders — these write S directly, so a preset can push values back */
+const SKY_SLIDERS=[
+  ['doy',  v=>S.doy=Math.round(v),      ()=>S.doy,            ()=>doyLabel(S.doy)],
+  ['hour', v=>S.hour=v/60,              ()=>S.hour*60,        ()=>hhmm(S.hour)],
+  ['cloud',v=>S.cloud=v/100,            ()=>S.cloud*100,      ()=>Math.round(S.cloud*100)+'%'],
+  ['moon', v=>S.moon=v/100,             ()=>S.moon*100,       ()=>moonLabel(S.moon)],
+  ['lat',  v=>S.lat=v,                  ()=>S.lat,            ()=>S.lat.toFixed(0)+'°N'],
+  ['size', v=>S.size=v/10,              ()=>S.size*10,        ()=>S.size.toFixed(1)+' cm'],
+  ['gap',  v=>S.gap=v/100,              ()=>S.gap*100,        ()=>fmtLen(S.gap)]
+];
+function syncSliders(){
+  SKY_SLIDERS.forEach(([id,,get,fmt])=>{
+    const el=$('#'+id); if(!el)return;
+    el.value=get();
+    el.style.setProperty('--p',((el.value-el.min)/(el.max-el.min)*100)+'%');
+    const lab=$('#'+id+'Val'); if(lab)lab.textContent=fmt();
+  });
+}
+SKY_SLIDERS.forEach(([id,set])=>{
+  const el=$('#'+id); if(!el)return;
+  el.addEventListener('input',()=>{set(+el.value);syncSliders();render();});
+});
+
+$$('[data-unit]').forEach(b=>b.onclick=()=>{S.unit=b.dataset.unit;syncPressed('[data-unit]','unit',S.unit);fmtDepth();fmtDist();render();});
+$$('#angleSeg button').forEach(b=>b.onclick=()=>{S.angle=b.dataset.angle;syncPressed('#angleSeg button','angle',S.angle);render();});
+$('#infoBtn').onclick=()=>$('#info').showModal();
+$('#closeInfo').onclick=()=>$('#info').close();
+
+/* ══════════════════════════════════════════════════════════════════
+   RENDER
+   ══════════════════════════════════════════════════════════════════ */
+let seeds=null;
+function particleSeeds(){
+  if(seeds)return seeds;
+  seeds=[];for(let i=0;i<700;i++)seeds.push([Math.random(),Math.random(),Math.random()]);
+  return seeds;
+}
+
+function render(){
+  const narrow=window.innerWidth<760;
+  writeHash();
+  const env=buildEnv();
+  const eye=makeEye(env);
+  const pat=PATS.find(p=>p.id===S.pat);
+  const lure=LURES.find(l=>l.id===S.lure);
+
+  /* region colours through the fish's eye */
+  const C={};
+  ['back','body','belly','acc'].forEach(k=>{C[k]=css(...eye(radiance(pat[k],env)));});
+  const bgRGB=eye(env.bg);
+  const Tavg=env.T.reduce((a,b)=>a+b,0)/NB;
+
+  /* ---- main scene ---- */
+  const cv=$('#scene'),ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  // vertical gradient: sample background at depth ± a little
+  const shallower=sampleBG(env,-Math.min(S.depth,2.2)), deeper=sampleBG(env,+2.2);
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,css(...eye(shallower)));
+  g.addColorStop(0.42,css(...bgRGB));
+  g.addColorStop(1,css(...eye(deeper)));
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  // light shafts
+  const shaft=env.sky.directFrac*clamp(env.sun.elev/38,0,1)
+    *Math.exp(-avg(env.Kd)*S.depth*0.7)*clamp(1-env.W.sed/6,0,1);
+  if(shaft>0.02&&S.angle!=='up'){
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<7;i++){
+      const x=W*(0.08+i*0.135), w=W*0.055;
+      const lg=ctx.createLinearGradient(x,0,x-W*0.10,H);
+      lg.addColorStop(0,`rgba(200,235,255,${0.11*shaft})`);
+      lg.addColorStop(1,'rgba(200,235,255,0)');
+      ctx.fillStyle=lg;
+      ctx.beginPath();ctx.moveTo(x-w,0);ctx.lineTo(x+w,0);ctx.lineTo(x+w-W*0.10,H);ctx.lineTo(x-w-W*0.10,H);ctx.closePath();ctx.fill();
+    }
+    ctx.restore();
+  }
+  if(S.angle==='up'){ // Snell's window glow
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    const rg=ctx.createRadialGradient(W*0.5,H*0.34,10,W*0.5,H*0.34,W*0.46);
+    rg.addColorStop(0,`rgba(190,225,245,${0.20*clamp(env.sky.directFrac+0.25,0,1)})`);
+    rg.addColorStop(1,'rgba(190,225,245,0)');
+    ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);ctx.restore();
+  }
+
+  // the lure
+  // True apparent size. The stage is a fixed 10° window on the fish's world, so the
+  // lure's on-screen width tracks the angle it actually subtends: 2·atan(L/2r).
+  const FOV=10;
+  const angW=2*Math.atan((S.size/100)/(2*Math.max(S.dist,0.05)))*180/Math.PI;
+  const scale=(W*clamp(angW/FOV,0.015,2.6))/220;
+  ctx.save();
+  ctx.translate(W*0.5,H*0.52);
+  ctx.scale(scale,scale);
+  if(S.angle==='up')ctx.rotate(-0.10);
+  ctx.shadowColor='rgba(0,0,0,'+(0.35*Tavg)+')';ctx.shadowBlur=26;ctx.shadowOffsetY=10;
+  drawLure(ctx,lure,C,Tavg,pat);
+  ctx.restore();
+
+  // suspended particulate in front of the lure
+  const turb=clamp((env.W.sed*0.9+env.W.chl*0.055)/6,0,1);
+  if(turb>0.01){
+    const ps=particleSeeds();
+    ctx.save();
+    for(let i=0;i<ps.length*Math.min(1,turb*1.4);i++){
+      const[a,b,c]=ps[i];
+      const r=0.6+c*2.6;
+      ctx.globalAlpha=(0.05+0.30*turb)*(0.35+c*0.65);
+      ctx.fillStyle=css(bgRGB[0]*1.9+0.05,bgRGB[1]*1.9+0.05,bgRGB[2]*1.8+0.05);
+      ctx.beginPath();ctx.arc(a*W,b*H,r,0,7);ctx.fill();
+    }
+    ctx.restore();
+  }
+  // vignette
+  const vg=ctx.createRadialGradient(W*0.5,H*0.5,H*0.28,W*0.5,H*0.5,H*0.95);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.42)');
+  ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+
+  /* ---- score ---- */
+  const sc=patScore(pat,env);
+  const detail=scoreOf(radiance(pat.body,env),env);
+  const words=[[8,'Invisible','#ff6b6b'],[20,'Barely there','#ff9f5a'],[38,'Detectable','#ffc85a'],
+               [58,'Clearly visible','#a8e05f'],[76,'Strong contrast','#5fe0a8'],[101,'Beacon','#4fd6ff']];
+  const wd=words.find(w=>sc<w[0]);
+  $('#vWord').textContent=wd[1];
+  $('#vDot').style.color=wd[2];
+  $('#vSub').textContent=' · '+Math.round(sc)+'/100';
+  {const who=SPECIES.find(s=>s.id===S.species).name.split(' — ')[0];
+   const ang=S.angle==='up'?'from below':S.angle==='down'?'from above':'side-on';
+   $('#sceneCap').textContent = narrow
+     ? who+' · '+ang+' · '+S.size.toFixed(1)+'cm at '+fmtLen(S.dist)+' · '+angW.toFixed(1)+'°'
+     : SPECIES.find(s=>s.id===S.species).name+' — '+ang+
+       ' · '+S.size.toFixed(1)+' cm at '+fmtLen(S.dist)+' · subtends '+angW.toFixed(1)+'°';}
+  $('#stamp').innerHTML = narrow
+    ? `${hhmm(S.hour)} · ${env.sun.elev.toFixed(0)}°<br>${fmtLen(S.depth)} down`
+    : `${env.W.name}<br>${hhmm(S.hour)} · sun ${env.sun.elev.toFixed(0)}° · ${fmtLen(S.depth)} down`;
+
+  /* ---- true colour panel ---- */
+  {
+    const t=$('#truth'),c2=t.getContext('2d');
+    c2.clearRect(0,0,t.width,t.height);
+    const bg=c2.createLinearGradient(0,0,0,t.height);
+    bg.addColorStop(0,'#1a2229');bg.addColorStop(1,'#0d1318');
+    c2.fillStyle=bg;c2.fillRect(0,0,t.width,t.height);
+    const TC={};['back','body','belly','acc'].forEach(k=>TC[k]=css(...trueColor(pat[k])));
+    c2.save();c2.translate(t.width/2,t.height/2);
+    const s2=Math.min(t.width/280,t.height/150);
+    c2.scale(s2,s2);
+    c2.shadowColor='rgba(0,0,0,.5)';c2.shadowBlur=18;c2.shadowOffsetY=6;
+    drawLure(c2,lure,TC,1,pat);
+    c2.restore();
+    $('#patName').textContent=pat.name+' · '+lure.name;
+  }
+
+  /* ---- spectrum panel ---- */
+  {
+    const {c:c3,w,h}=fitCanvas($('#spec'),120);
+    c3.fillStyle='#0b1116';c3.fillRect(0,0,w,h);
+    const pad=10, bw=(w-pad*2)/NB;
+    const mx=Math.max(...env.E0);
+    for(let i=0;i<NB;i++){
+      const rel=env.E[i]/mx;
+      const relS=env.E0[i]/mx;
+      const mono=spectralRGB(LAM[i]);
+      c3.fillStyle=`rgba(${mono[0]},${mono[1]},${mono[2]},.16)`;
+      c3.fillRect(pad+i*bw,h-17-(h-30)*Math.pow(relS,0.42),bw+.6,(h-30)*Math.pow(relS,0.42));
+      c3.fillStyle=`rgb(${mono[0]},${mono[1]},${mono[2]})`;
+      c3.fillRect(pad+i*bw,h-17-(h-30)*Math.pow(rel,0.42),bw+.6,(h-30)*Math.pow(rel,0.42));
+    }
+    c3.strokeStyle='rgba(255,255,255,.14)';c3.lineWidth=1;
+    c3.beginPath();c3.moveTo(pad,h-16.5);c3.lineTo(w-pad,h-16.5);c3.stroke();
+    c3.fillStyle='rgba(255,255,255,.5)';c3.font='500 10px ui-monospace,monospace';
+    c3.fillText('400',pad,h-4);
+    c3.textAlign='right';c3.fillText('700 nm',w-pad,h-4);
+    c3.textAlign='center';c3.fillStyle='rgba(255,255,255,.32)';
+    c3.fillText('ghost = at surface',w/2,h-4);c3.textAlign='left';
+    const surv=sum(env.E)/sum(env.E0);
+    $('#lightPct').textContent=(surv*100<0.1?'<0.1':(surv*100).toFixed(surv>0.1?0:1))+'% of surface light';
+  }
+
+  /* ---- depth ladder ---- */
+  {
+    const {c:c4,w,h}=fitCanvas($('#ladder'),narrow?104:118);
+    c4.fillStyle='#0b1116';c4.fillRect(0,0,w,h);
+    const steps=narrow?[0,1,2,3,5,8,12]:[0,0.5,1,2,3,5,8,12,18,25];
+    const cw=w/steps.length;
+    const save={d:S.depth};
+    steps.forEach((d,i)=>{
+      S.depth=d;
+      const e2=buildEnv(),ey2=makeEye(e2);
+      const bg2=ey2(e2.bg);
+      const bd=css(...ey2(radiance(pat.body,e2)));
+      const bl=css(...ey2(radiance(pat.belly,e2)));
+      const bk=css(...ey2(radiance(pat.back,e2)));
+      const x=i*cw;
+      c4.fillStyle=css(...bg2);c4.fillRect(x,0,cw,h);
+      const px=x+cw*0.12,pw=cw*0.76,py=20,ph=h-44;
+      const gg=c4.createLinearGradient(0,py,0,py+ph);
+      gg.addColorStop(0,bk);gg.addColorStop(.36,bk);gg.addColorStop(.44,bd);
+      gg.addColorStop(.70,bd);gg.addColorStop(.78,bl);gg.addColorStop(1,bl);
+      c4.fillStyle=gg;
+      roundRect(c4,px,py,pw,ph,10);c4.fill();
+      c4.strokeStyle='rgba(255,255,255,.10)';c4.lineWidth=1;c4.stroke();
+      const near=Math.abs(save.d-d)<Math.max(0.45,d*0.16);
+      c4.fillStyle=near?'#c9f24a':'rgba(255,255,255,.55)';
+      c4.font=(near?'700 ':'500 ')+'10.5px ui-monospace,monospace';
+      c4.textAlign='center';
+      c4.fillText(S.unit==='m'?d+' m':Math.round(d*3.28084)+' ft',x+cw/2,h-5);
+      if(near){c4.fillRect(x+cw/2-14,py-7,28,3);}
+      const s3=patScore(pat,e2);
+      c4.fillStyle='rgba(255,255,255,.4)';c4.font='500 9.5px ui-monospace,monospace';
+      c4.fillText(Math.round(s3),x+cw/2,12);
+      c4.textAlign='left';
+      if(i)  {c4.fillStyle='rgba(0,0,0,.28)';c4.fillRect(x,0,1,h);}
+    });
+    S.depth=save.d;
+  }
+
+  /* ---- detection range vs distance ---- */
+  {
+    const {c:c5,w,h}=fitCanvas($('#range'),narrow?150:170);
+    c5.fillStyle='#0b1116'; c5.fillRect(0,0,w,h);
+    const padL=26, padR=10, padT=9, padB=20;
+    const best=PATS.map(p=>({p,s:patScore(p,env)})).sort((a,b)=>b.s-a.s)[0].p;
+    const forage=nearestForage(env).pat;
+    const series=[
+      {p:pat,   col:'#c9f24a', lw:3.4, nm:'yours · '+pat.name},
+      {p:best,  col:'#7fd4ff', lw:2.2, nm:'best here · '+best.name}
+    ];
+    if(forage&&forage.id!==pat.id)
+      series.push({p:forage,col:'rgba(255,255,255,.45)',lw:2,nm:'forage · '+forage.name.replace(/ \(.*\)/,'')});
+    const RMAX=Math.max(2.5,Math.min(30,detectRange(best,S.size)*1.35));
+    const X=r=>padL+(r/RMAX)*(w-padL-padR);
+    const Y=v=>{const t=clamp((Math.log10(Math.max(v,0.02))+1.7)/3.4,0,1);return h-padB-t*(h-padT-padB);};
+    // threshold line at index 1 — below this the fish cannot pick it out
+    c5.strokeStyle='rgba(255,120,120,.55)';c5.lineWidth=1.5;c5.setLineDash([7,6]);
+    c5.beginPath();c5.moveTo(padL,Y(1));c5.lineTo(w-padR,Y(1));c5.stroke();c5.setLineDash([]);
+    c5.fillStyle='rgba(255,120,120,.8)';c5.font='600 9.5px ui-monospace,monospace';
+    c5.fillText('detection threshold',padL+6,Y(1)-5);
+    series.forEach(sr=>{
+      c5.beginPath();
+      for(let i=0;i<=90;i++){
+        const r=0.08+ i/90*(RMAX-0.08);
+        const v=detectIndex(sr.p,r,S.size);
+        const x=X(r),y=Y(v); i?c5.lineTo(x,y):c5.moveTo(x,y);
+      }
+      c5.strokeStyle=sr.col;c5.lineWidth=sr.lw;c5.lineJoin='round';c5.stroke();
+    });
+    // your lure's range marker
+    const myR=detectRange(pat,S.size);
+    if(myR>0.08&&myR<RMAX){
+      c5.strokeStyle='#c9f24a';c5.lineWidth=1.5;c5.setLineDash([3,4]);
+      c5.beginPath();c5.moveTo(X(myR),Y(1));c5.lineTo(X(myR),h-padB);c5.stroke();c5.setLineDash([]);
+    }
+    // axes
+    c5.strokeStyle='rgba(255,255,255,.16)';c5.lineWidth=1;
+    c5.beginPath();c5.moveTo(padL,padT);c5.lineTo(padL,h-padB);c5.lineTo(w-padR,h-padB);c5.stroke();
+    c5.fillStyle='rgba(255,255,255,.45)';c5.font='500 9.5px ui-monospace,monospace';
+    const ticks=RMAX<=3?[0,0.5,1,1.5,2,2.5,3]:RMAX<=8?[0,1,2,3,4,5,6,7,8]:[0,5,10,15,20,25,30];
+    c5.textAlign='center';
+    ticks.filter(t=>t<=RMAX).forEach(t=>{c5.fillText(S.unit==='m'?t+'m':Math.round(t*3.28)+'ft',X(t),h-6);});
+    c5.textAlign='left';
+    c5.save();c5.translate(11,(h-padB)/2+padT);c5.rotate(-Math.PI/2);c5.textAlign='center';
+    c5.fillText('detectability',0,0);c5.restore();
+    // legend
+    let ly=padT+2;
+    c5.font='600 9.5px ui-monospace,monospace';
+    c5.textAlign='right';
+    series.forEach(sr=>{
+      c5.fillStyle=sr.col;
+      c5.fillText(sr.nm,w-padR-4,ly+8);
+      const tw=c5.measureText(sr.nm).width;
+      c5.fillRect(w-padR-4-tw-13,ly+4,9,3);
+      ly+=13;
+    });
+    c5.textAlign='left';
+    $('#rangeNote').textContent=(myR>=24.9?'beyond '+fmtLen(25):myR<0.1?'not detectable at any range':'visible to '+fmtLen(myR))
+      +' · '+S.size.toFixed(1)+' cm';
+  }
+
+  /* ---- readouts ---- */
+  $('#kContrast').textContent=Math.round(detail.mich*100)+'%';
+  $('#kChroma').textContent=Math.round(clamp(detail.chrom/0.34,0,1)*100)+'%';
+  $('#kWc').textContent=Math.round(detail.wC*100)+'% of the score';
+  {const f=nearestForage(env);
+   $('#kMatch').textContent=f.pat?Math.round(f.match*100)+'% · '+f.pat.name.replace(/ \(.*\)/,''):'—';}
+  {const dr=detectRange(pat,S.size);
+   $('#kDet').textContent=dr<0.1?'—':dr>=24.9?'> '+fmtLen(25):fmtLen(dr);}
+  const cAvg=avg(env.O.c);
+  $('#kRange').textContent=fmtLen(Math.max(0.05,4.0/cAvg));
+  const kAvg=avg(env.Kd);
+  $('#kSecchi').textContent='Secchi ≈ '+fmtLen(Math.max(0.05,1.44/kAvg));
+
+  /* ---- ranking ---- */
+  {
+    const rows=PATS.map(p=>({p,s:patScore(p,env)})).sort((a,b)=>b.s-a.s).slice(0,6);
+    const host=$('#rank');host.innerHTML='';
+    rows.forEach((r,i)=>{
+      const b=document.createElement('button');
+      b.type='button';b.className='rk'+(r.p.id===S.pat?' on':'');
+      b.innerHTML=`<span class="n">${i+1}</span>
+        <span class="chip" style="background:${patChipCSS(r.p)}"></span>
+        <span class="nm">${r.p.name}</span><span class="sc">${Math.round(r.s)}</span>`;
+      b.onclick=()=>{S.pat=r.p.id;syncPressed('#pats .pat','id',S.pat);render();};
+      host.appendChild(b);
+    });
+    if(!rows.some(r=>r.p.id===S.pat)){
+      const mine=PATS.find(p=>p.id===S.pat), ms=patScore(mine,env);
+      const all=PATS.map(p=>patScore(p,env)).sort((a,b)=>b-a);
+      const pos=all.findIndex(v=>v<=ms+1e-9)+1;
+      const b=document.createElement('button');
+      b.type='button';b.className='rk on';b.style.opacity='.85';b.style.marginTop='4px';
+      b.innerHTML=`<span class="n">${pos}</span>
+        <span class="chip" style="background:${patChipCSS(mine)}"></span>
+        <span class="nm">${mine.name} (yours)</span><span class="sc">${Math.round(ms)}</span>`;
+      host.appendChild(b);
+    }
+  }
+
+  /* ---- advice ---- */
+  $('#advice').innerHTML=advise(env,sc,detail);
+  {const spx=SPECIES.find(x=>x.id===S.species);
+   const cn=spx.cones?spx.cones.length:3;
+   const kind=cn===1?'monochromat':cn===2?'dichromat':'trichromat';
+   $('#spNote').textContent=(spx.peaks?spx.peaks.join(' / ')+' nm '+kind+(spx.uv?' (+ UV)':''):'420 / 534 / 564 nm trichromat')
+     +' · rods peak '+spx.rod+' nm';}
+  $('#angleHint').textContent = S.angle==='up'
+    ? 'Backlit by the surface. Colour mostly collapses — size, shape and darkness are what register.'
+    : S.angle==='down'
+    ? 'Seen from above against the bottom. A pale lure over dark silt and a dark lure over sand are two different problems.'
+    : 'Lit from above, seen against the water column. This is where colour choice actually matters.';
+  $('#botWrap').style.display = S.angle==='down' ? '' : 'none';
+  drawSunbar(env);
+  {const t=sunTimes(S.doy,S.lat,SITE.lon,env.sun.tz);
+   const e=env.sun.elev;
+   const parts=[`Sun ${e>0?'+':''}${e.toFixed(1)}°`];
+   if(t.polar==='night')parts.push('polar night');
+   else if(t.polar==='day')parts.push('midnight sun');
+   else parts.push(`up ${hhmm(t.rise)}`,`down ${hhmm(t.set)}`);
+   parts.push(`${Math.round(env.surfT*100)}% enters the water`);
+   $('#sunInfo').textContent=parts.join(' · ');
+   const ed=dayEdge(), refN=SPECIES.find(x=>x.id===ed.ref).name.split(' — ')[0];
+   const el=$('#edgeInfo');
+   if(ed.max<=1.02||!ed.windows.length){
+     el.innerHTML=`No low-light advantage over <b>${refN}</b> with this setup — this fish wins on daylight, not on dusk.`;
+   }else{
+     const ws=ed.windows.map(v=>hhmm(v.a)+'–'+hhmm(v.b)).join(' and ');
+     el.innerHTML=`<b>Predator's edge peaks ${ws}</b> — it out-sees ${refN.toLowerCase()} by ${ed.max.toFixed(1)}× then.`;
+   }}
+}
+
+/* ── The predator's edge ──────────────────────────────────────────
+   Why zander feed at dusk isn't mysticism. A tapetum lucidum and a low rod
+   threshold keep the predator seeing after its prey has gone effectively blind.
+   So: run the same lure past the predator's eye and past a roach's eye, hour by
+   hour, and take the ratio of the two detection ranges. The peak is the window. */
+const PREY_EYE='voorn';
+let _edgeK=null,_edgeV=null;
+function dayEdge(){
+  const key=[S.water,S.species,S.pat,S.size,S.doy,S.cloud,S.moon,S.lat,S.depth,S.angle,S.bottom].join('|');
+  if(key===_edgeK)return _edgeV;
+  const pat=PATS.find(p=>p.id===S.pat);
+  const ref=S.species===PREY_EYE?'karper':PREY_EYE;
+  const h0=S.hour, sp0=S.species;
+  const out=[], FLOOR=0.15;   // below ~15 cm a fish is working on lateral line, not eyes
+  for(let i=0;i<48;i++){       // every half hour: the crossover is brief and easy to step over
+    S.hour=i/2+0.25;
+    S.species=sp0;  const rp=detectRange(pat,S.size,10);
+    S.species=ref;  const rq=detectRange(pat,S.size,10);
+    out.push({h:i/2+0.25, pred:rp, prey:rq, edge:Math.min(12,(rp+FLOOR)/(rq+FLOOR))});
+  }
+  S.hour=h0; S.species=sp0;
+  const mx=Math.max(...out.map(o=>o.edge));
+  // every stretch where the predator holds a real advantage
+  const thr=Math.max(1.30,mx*0.45);
+  const win=[]; let run=null;
+  out.forEach(o=>{
+    if(o.edge>=thr&&o.pred>0.08){ if(!run)run={a:o.h-0.25,b:o.h+0.25}; else run.b=o.h+0.25; }
+    else if(run){win.push(run);run=null;}
+  });
+  if(run)win.push(run);
+  _edgeK=key; return (_edgeV={rows:out,max:mx,windows:win,ref});
+}
+
+/* A day's worth of sun elevation: civil/nautical twilight bands, night, and where you are in it. */
+function drawSunbar(env){
+  const {c,w,h}=fitCanvas($('#sunbar'),58);
+  const tz=tzNL(S.doy);
+  const bandFor=e=>e>6?'#2f6f8f':e>0?'#7a5a2e':e>-6?'#3a3550':e>-12?'#1d2138':'#12162a';
+  for(let x=0;x<w;x++){
+    const e=solarElev(S.doy,x/w*24,S.lat,SITE.lon,tz);
+    c.fillStyle=bandFor(e);c.fillRect(x,0,1.2,h);
+  }
+  // elevation trace
+  c.beginPath();
+  for(let x=0;x<=w;x++){
+    const e=solarElev(S.doy,x/w*24,S.lat,SITE.lon,tz);
+    const y=h-6-(clamp(e,-20,70)+20)/90*(h-12);
+    x?c.lineTo(x,y):c.moveTo(x,y);
+  }
+  c.strokeStyle='rgba(255,235,170,.85)';c.lineWidth=2;c.stroke();
+  // horizon
+  const y0=h-6-(20)/90*(h-12);
+  c.strokeStyle='rgba(255,255,255,.28)';c.lineWidth=1;c.setLineDash([4,4]);
+  c.beginPath();c.moveTo(0,y0);c.lineTo(w,y0);c.stroke();c.setLineDash([]);
+  // predator's edge through the day
+  const ed=dayEdge();
+  if(ed.max>1.02){
+    ed.windows.forEach(win=>{
+      c.fillStyle='rgba(201,242,74,.16)';
+      c.fillRect(win.a/24*w,0,(win.b-win.a)/24*w,h);
+    });
+    c.beginPath();
+    ed.rows.forEach((o,i)=>{
+      const x=o.h/24*w, y=h-4-((o.edge-1)/(ed.max-1))*(h-14);
+      i?c.lineTo(x,y):c.moveTo(x,y);
+    });
+    c.strokeStyle='#c9f24a';c.lineWidth=1.8;c.stroke();
+  }
+  // now
+  const x0=S.hour/24*w;
+  c.strokeStyle='#c9f24a';c.lineWidth=2.5;
+  c.beginPath();c.moveTo(x0,0);c.lineTo(x0,h);c.stroke();
+  c.fillStyle='#c9f24a';c.beginPath();c.arc(x0,7,3.5,0,7);c.fill();
+  c.fillStyle='rgba(255,255,255,.66)';c.font='600 9px ui-monospace,monospace';
+  ['00','06','12','18'].forEach((t,i)=>{c.fillText(t,i*w/4+3,h-4);});
+  c.textAlign='right';c.fillText('24',w-3,h-4);c.textAlign='left';
+}
+/* Back the canvas with device pixels but draw in CSS pixels, so text is both
+   crisp on a phone and the size we actually asked for. */
+function fitCanvas(cv,cssH){
+  const dpr=Math.min(window.devicePixelRatio||1,2.5);
+  const cssW=Math.max(240,cv.clientWidth||cv.parentNode.clientWidth||600);
+  const w=Math.round(cssW*dpr), h=Math.round(cssH*dpr);
+  if(cv.width!==w)cv.width=w;
+  if(cv.height!==h)cv.height=h;
+  const c=cv.getContext('2d');
+  c.setTransform(dpr,0,0,dpr,0,0);
+  c.clearRect(0,0,cssW,cssH);
+  return {c,w:cssW,h:cssH};
+}
+function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);
+  c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+const sum=a=>a.reduce((x,y)=>x+y,0);
+const avg=a=>sum(a)/a.length;
+function sampleBG(env,dd){
+  const d=Math.max(0,S.depth+dd);
+  const E=env.E0.map((v,i)=>v*Math.exp(-env.Kd[i]*d));
+  if(S.angle==='up')return E.map(v=>v*0.62);
+  if(S.angle==='down')return E.map((v,i)=>v*env.bottom.r[i]*0.75);
+  return E.map((v,i)=>v*env.O.Rw[i]);
+}
+function spectralRGB(l){
+  const X=CMF[(l-L0)/DL][0],Y=CMF[(l-L0)/DL][1],Z=CMF[(l-L0)/DL][2];
+  let[r,g,b]=xyz2lin(X,Y,Z);
+  const m=Math.max(r,g,b,1e-6);
+  return[Math.round(gam(clamp(r/m,0,1))*255),Math.round(gam(clamp(g/m,0,1))*255),Math.round(gam(clamp(b/m,0,1))*255)];
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ADVICE ENGINE
+   ══════════════════════════════════════════════════════════════════ */
+function advise(env,sc,detail){
+  const W=env.W, sp=SPECIES.find(s=>s.id===S.species);
+  // which band survives best at this depth?
+  const band=(a,b)=>{let t=0;for(let i=0;i<NB;i++){if(LAM[i]>=a&&LAM[i]<b)t+=env.E[i];}return t;};
+  const LOW=adaptState(env).rodW;
+  const B=band(400,500),G=band(500,590),Rr=band(590,700);
+  const tot=B+G+Rr+1e-12;
+  const win = Rr>=G&&Rr>=B?'red / orange' : G>=B?'green / chartreuse' : 'blue';
+  const turb=W.sed*0.9+W.chl*0.05;
+  const best=PATS.map(p=>({p,s:patScore(p,env)})).sort((a,b)=>b.s-a.s);
+  const top=best.slice(0,3).map(r=>r.p.name);
+
+  const out=[];
+  out.push(`Through <b>${W.name.toLowerCase()}</b> water at ${fmtLen(S.depth)}, the surviving light is mostly <em>${win}</em> (${Math.round(Rr/tot*100)}% red · ${Math.round(G/tot*100)}% green · ${Math.round(B/tot*100)}% blue).`);
+
+  // red death depth
+  const redK=avg(env.Kd.slice((620-L0)/DL));
+  const redDeath=2.6/redK;
+  if(redDeath<20 && S.depth>redDeath*0.7 && Rr/tot<0.45){
+    out.push(`Red pigment stops reading as red past about <b>${fmtLen(redDeath)}</b> here — below that it is simply a dark shape.`);
+  }
+  if(turb>3.2){
+    out.push(`Suspended sediment is the limiter, not colour. Contrast collapses past roughly <b>${fmtLen(Math.max(0.15,4/avg(env.O.c)))}</b>, so pick loud, bright or jet-black and let vibration do the finding.`);
+  }else if(W.cdom>1.8){
+    out.push(`Tannin has eaten the blue end. Long wavelengths and hard silhouettes win — blue and purple go flat and lifeless.`);
+  }else if(W.chl>10){
+    out.push(`An algae bloom leaves a narrow green window. Chartreuse sits right inside it; whites go slightly green and lose separation.`);
+  }else if(W.cdom>0.7||W.sed>0.7){
+    out.push(`Moderate stain: the fish gets a decent look but the blue end is already thin. Something with a bright panel or a hard dark back holds its edge best.`);
+  }else if(W.sed<0.3&&W.cdom<0.3){
+    out.push(`Water this clear shows detail — and flaws. Natural, translucent patterns usually beat loud ones, and the fish gets a long look.`);
+  }
+  if(LOW>0.22){
+    out.push(`At this light level ${sp.name.toLowerCase().replace(' (human)','')} ${sp.night>2?'still has a real advantage — the tapetum is doing the work':'is running mostly on rods'}. Colour discrimination is largely gone; <b>silhouette</b> decides it.`);
+  }
+  if(S.angle==='up'){
+    out.push(`Seen from below the lure is backlit. Dark, opaque bodies read hardest against the sky.`);
+  }
+  if(S.angle==='down'){
+    const bt=env.bottom.name.toLowerCase();
+    const bY=toXYZ(env.bg)[1], lY=toXYZ(radiance(PATS.find(p=>p.id===S.pat).body,env))[1];
+    out.push(lY>bY
+      ? `Riding ${fmtLen(S.gap)} over <b>${bt}</b> your lure is the <em>brighter</em> object — a pale shape on a dark floor.`
+      : `Riding ${fmtLen(S.gap)} over <b>${bt}</b> your lure is <em>darker</em> than the bottom, so it reads as a silhouette against it. Lift it higher and the bottom dims until the contrast flips.`);
+  }
+  {const t=sunTimes(S.doy,S.lat,SITE.lon,env.sun.tz), e=env.sun.elev;
+   if(t.rise!=null){
+     const dR=Math.abs(S.hour-t.rise), dS=Math.abs(S.hour-t.set);
+     if(e>-6&&e<9&&Math.min(dR,dS)<1.6)
+       out.push(`You are inside the <em>${dR<dS?'dawn':'dusk'} window</em> — sun ${e.toFixed(0)}°, and only ${Math.round(env.surfT*100)}% of the light even makes it through the surface. Light is falling fast, but ${sp.night>2?'this fish gains on its prey as it goes':'colour is on its way out'}.`);
+     else if(e<-6) out.push(`Full dark. Only ${(env.surfT*100).toFixed(0)}% surface transmission matters little now — what is left is ${S.moon>.6?'a bright moon':S.moon<.15?'starlight':'a partial moon'}.`);
+   }}
+  if(W.note) out.push(W.note);
+  if(sp.note) out.push(sp.note);
+  const curPat=PATS.find(x=>x.id===S.pat);
+  if(curPat&&curPat.uv){
+    const uvLeft=Math.exp(-(3.2+W.cdom*6.4+W.sed*1.1)*S.depth);   // UV dies far faster than blue
+    out.push(uvLeft<0.02
+      ? `This is an <b>Ultra UV</b> finish, but UV is absorbed far faster than any visible light: at ${fmtLen(S.depth)} in this water essentially none is left to excite it. What still works is the ordinary fluorescence, which this model does simulate.`
+      : `<b>Ultra UV</b> finish. This simulation stops at 400 nm so it cannot draw the UV band itself — but roughly ${Math.round(uvLeft*100)}% of surface UV still reaches this depth here, and the visible fluorescence it drives is modelled.`);
+  }
+  if(sp.cones&&sp.cones.length===2&&B/tot>0.25){
+    out.push(`It has no blue cone. That blue in your hand is simply not blue to this fish.`);
+  }
+  if(sp.uv&&W.sed<1.5){
+    out.push(`It also sees ultraviolet, which this screen cannot show — UV-reactive finishes do something here that you will never see.`);
+  }
+  {const f=nearestForage(env), dr=detectRange(PATS.find(p=>p.id===S.pat),S.size);
+   if(dr>6&&W.sed<0.6&&W.cdom<0.9){
+     out.push(`Water this clear gives a <b>${fmtLen(dr)}</b> approach — several seconds of inspection. This model scores how well a lure is <em>seen</em>, not whether a fish believes it; in that regime the forage match (<b>${Math.round(f.match*100)}%</b>) is arguably worth more than raw contrast.`);
+   }}
+  out.push(`Best bets right now: <em>${top.join('</em>, <em>')}</em>.`);
+  return out.map(t=>`<p style="margin:0 0 8px">${t}</p>`).join('');
+}
+
+/* ── the whole setup lives in the URL, so a rig is one link ── */
+const URLK=['water','depth','dist','species','angle','lure','pat','unit','doy','hour','cloud','moon','lat','bottom','size','gap'];
+let _hashT=null;
+function writeHash(){
+  if(_hashT)return;
+  _hashT=setTimeout(()=>{
+    _hashT=null;
+    try{
+      const o={};URLK.forEach(k=>{o[k]=typeof S[k]==='number'?+S[k].toFixed(3):S[k];});
+      history.replaceState(null,'','#'+encodeURIComponent(JSON.stringify(o)));
+    }catch(e){/* rate-limited; the next render will catch up */}
+  },500);
+}
+function readHash(){
+  if(!location.hash||location.hash.length<3)return false;
+  try{
+    const o=JSON.parse(decodeURIComponent(location.hash.slice(1)));
+    URLK.forEach(k=>{if(o[k]!==undefined)S[k]=o[k];});
+    if(!WATERS.some(w=>w.id===S.water))S.water='polder';
+    if(!SPECIES.some(x=>x.id===S.species))S.species='zander';
+    if(!PATS.some(x=>x.id===S.pat))S.pat='ftiger';
+    if(!LURES.some(x=>x.id===S.lure))S.lure='jerk';
+    if(!BOTTOMS.some(x=>x.id===S.bottom))S.bottom='silt';
+    S.depth=clamp(+S.depth||0,0,MAXDEPTH); S.dist=clamp(+S.dist||1,0.2,MAXDIST);
+    S.hour=clamp(+S.hour||12,0,23.99); S.doy=clamp(Math.round(+S.doy||180),1,365);
+    S.cloud=clamp(+S.cloud||0,0,1); S.moon=clamp(+S.moon||0,0,1);
+    S.lat=clamp(+S.lat||52,0,66); S.size=clamp(+S.size||10,3,30);
+    S.gap=clamp(+S.gap||BOT_GAP_DEF,0.05,3);
+    return true;
+  }catch(e){return false;}
+}
+function syncAllPressed(){
+  syncPressed('#waters .water','id',S.water);
+  syncPressed('#lures .lure','id',S.lure);
+  syncPressed('#pats .pat','id',S.pat);
+  syncPressed('#fishPick .fishb','id',S.species);
+  syncPressed('#botSeg button','id',S.bottom);
+  syncPressed('#angleSeg button','angle',S.angle);
+  syncPressed('[data-unit]','unit',S.unit);
+  D.value=Math.pow(S.depth/MAXDEPTH,1/1.7)*100;
+  R.value=Math.pow((S.dist-0.2)/(MAXDIST-0.2),1/1.6)*100;
+  [D,R].forEach(el=>el.style.setProperty('--p',(el.value/el.max*100)+'%'));
+}
+$('#copyLink').onclick=async()=>{
+  if(_hashT){clearTimeout(_hashT);_hashT=null;}
+  writeHash(); await new Promise(r=>setTimeout(r,540));
+  const btn=$('#copyLink');
+  try{await navigator.clipboard.writeText(location.href);btn.textContent='Link copied';}
+  catch(e){btn.textContent='Copy from the address bar';}
+  setTimeout(()=>{btn.textContent='Copy setup link';},2200);
+};
+
+/* ── tabs (installed-app / narrow layout only) ────────────────── */
+(function tabs(){
+  const bar=$('#tabbar');
+  const set=t=>{
+    document.body.dataset.active=t;
+    [...bar.children].forEach(b=>b.setAttribute('aria-selected',String(b.dataset.t===t)));
+    try{sessionStorage.setItem('ds.tab',t);}catch(e){}
+    requestAnimationFrame(()=>{render();window.scrollTo({top:0,behavior:'smooth'});});
+  };
+  [...bar.children].forEach(b=>b.addEventListener('click',()=>set(b.dataset.t)));
+  let start='lure';
+  try{const v=sessionStorage.getItem('ds.tab');if(v)start=v;}catch(e){}
+  document.body.dataset.active=start;
+  [...bar.children].forEach(b=>b.setAttribute('aria-selected',String(b.dataset.t===start)));
+})();
+
+/* Offline support, but only where a manifest is actually served — the
+   published Artifact strips the head tags, so this is skipped there. */
+if('serviceWorker' in navigator && document.querySelector('link[rel=manifest]')){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // A new build activating under a running app means the page is stale.
+      reg.addEventListener('updatefound',()=>{
+        const sw=reg.installing;
+        if(sw)sw.addEventListener('statechange',()=>{
+          if(sw.state==='installed'&&navigator.serviceWorker.controller)sw.postMessage('skipWaiting');
+        });
+      });
+    }).catch(()=>{});
+    let reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(reloaded)return; reloaded=true; location.reload();
+    });
+  });
+}
+
+/* boot */
+readHash();
+syncAllPressed();syncSliders();fmtDepth();fmtDist();render();
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(render,140);},{passive:true});
+</script>
+</body>
+</html>
